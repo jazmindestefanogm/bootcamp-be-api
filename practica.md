@@ -33,18 +33,6 @@ Cliente → routes → controllers → repositories → models (Sequelize) → S
 | PUT | `PUT /libros/{id}` |
 | DELETE | `DELETE /libros/{id}` y `DELETE /autores/{id}` |
 
-### Plan del día
-
-| Bloque | Duración | Ejercicios |
-|---|---|---|
-| 1 | 15 min | 1 · Levantar el proyecto y conocer la base |
-| 2 | 40 min | 2 y 3 · Autores: primer contrato y primer flujo completo |
-| 3 | 45 min | 4 y 5 · Libros: búsqueda con filtros y paginación |
-| — | 15 min | Descanso |
-| 4 | 40 min | 6 y 7 · Crear un libro: contrato con body y errores |
-| 5 | 40 min | 8 y 9 · PATCH vs PUT, y los dos DELETE |
-| 6 | 45 min | 10 y 11 · Préstamos: la primera regla de negocio |
-
 ---
 
 ## Ejercicio 1 · Levantar el proyecto y conocer la base
