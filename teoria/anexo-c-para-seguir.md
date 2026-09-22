@@ -7,7 +7,7 @@ Lo que quedó fuera a propósito, en el orden en que conviene encararlo:
 - **Validación con `zod`.** Definís el schema una vez y obtenés **la validación en runtime y el tipo de TypeScript** del mismo lugar (`z.infer`). Es la evolución natural de los `typeof` a mano.
 - **Capa de servicios.** Cuando los controladores empiezan a tener más reglas de negocio que HTTP (módulo 5.6).
 - **Variables de entorno con `dotenv`.** Puerto, ruta de la base, credenciales. Nada de eso va escrito en el código.
-- **Cambiar SQLite por PostgreSQL o MySQL.** Con Sequelize es cambiar el dialecto en la conexión. Es la prueba de fuego de que los repositorios aislaron bien la base.
+- **Cambiar PostgreSQL por MySQL.** Con Sequelize es cambiar el dialecto en la conexión. Es la prueba de fuego de que los repositorios aislaron bien la base.
 - **Tests de endpoints con `supertest`.** Cada fila de errores del contrato es un test.
 - **Inyección de dependencias.** Lo del módulo 6.8: pasar el repositorio al controlador en vez de importarlo, para testear con uno falso.
 - **Autenticación con JWT.** Un middleware que lee el header `Authorization`, valida el token y deja el usuario en `req`.

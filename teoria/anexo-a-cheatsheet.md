@@ -65,7 +65,8 @@ await instancia.update(cambios);                                   // UPDATE
 await instancia.destroy();                                         // DELETE
 instancia.toJSON();                                                // → objeto plano
 
-{ campo: { [Op.like]: `%${texto}%` } }    // LIKE (en SQLite no distingue mayúsculas)
+{ campo: { [Op.like]: `%${texto}%` } }    // LIKE (en Postgres distingue mayúsculas)
+{ campo: { [Op.iLike]: `%${texto}%` } }   // ILIKE (no distingue mayúsculas)
 { campo: { [Op.gte]: 10 } }               // >=     Op.gt, Op.lt, Op.lte, Op.ne
 { campo: null }                           // IS NULL
 { campo: { [Op.ne]: null } }              // IS NOT NULL

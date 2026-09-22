@@ -170,7 +170,7 @@ En la estructura de carpetas esto se ve así: agregar un recurso nuevo es **agre
 
 > Si algo espera un tipo de objeto, debería poder recibir cualquier "variante" de ese objeto **sin enterarse**.
 
-En la práctica: si tu controlador usa un repositorio con `obtenerPorId()`, `crear()`, `eliminar()`, debería poder recibir el repositorio "con Sequelize y SQLite" o el repositorio "con Postgres" o el repositorio "falso en memoria para tests", y funcionar igual, porque todos exponen las mismas funciones con el mismo comportamiento.
+En la práctica: si tu controlador usa un repositorio con `obtenerPorId()`, `crear()`, `eliminar()`, debería poder recibir el repositorio "con Sequelize y Postgres" o el repositorio "con MySQL" o el repositorio "falso en memoria para tests", y funcionar igual, porque todos exponen las mismas funciones con el mismo comportamiento.
 
 Acá TypeScript ayuda directamente: escribís ese "conjunto de funciones" como una **interface** y las variantes la implementan.
 
