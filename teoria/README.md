@@ -28,6 +28,7 @@ La teoría está partida en **un archivo por módulo**.
   - 1.7 Convenciones de nombres
   - 1.8 Forma de las respuestas
   - 1.9 Del DER a los recursos
+  - 1.10 Path params, query params y body: dónde viaja cada dato
 - Módulo 2 · API Contract y documentación
   - 2.1 ¿Qué es un API Contract?
   - 2.2 Qué tiene que definir el contrato de un endpoint

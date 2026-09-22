@@ -54,7 +54,64 @@ Cliente → routes → controllers → repositories → models (Sequelize) → S
 
 ---
 
-## Ejercicio 2 · Contrato de autores
+## Ejercicio 2 · Diseñar las rutas
+
+📖 Teoría: 0.2 Anatomía de un pedido HTTP · 1.3 Paso 2: aplicar el estilo REST · 1.4 Paso 3: relaciones entre recursos · 1.5 Paso 4: filtros, orden y paginación con query params · 1.6 Paso 5: acciones que no son CRUD · 1.7 Convenciones de nombres · 1.9 Del DER a los recursos · 1.10 Path params, query params y body: dónde viaja cada dato
+
+Todavía sin código ni contrato. Solo papel, o un archivo `docs/RUTAS.md`. Acá se decide la forma de toda la API; lo que quede mal diseñado ahora se arrastra hasta el final.
+
+**a)** A partir del DER, listá los **recursos** de la API y la URL base de cada uno.
+
+**b)** Armá la tabla completa de endpoints para todo esto. Una fila por endpoint, con las columnas `Verbo | Ruta | Qué hace | Status de éxito | Errores posibles`:
+
+- Listar y ver un autor.
+- Borrar un autor.
+- Ver un libro.
+- Buscar libros por parte del título, filtrar por disponibilidad y por autor, y pedir los resultados de a páginas.
+- Crear, modificar parcialmente, reemplazar y borrar un libro.
+- Listar préstamos, solo los activos si se pide.
+- Registrar un préstamo.
+- Registrar la devolución de un préstamo.
+
+**c)** Para cada dato que la API recibe, decidí **dónde viaja** y justificalo en una palabra:
+
+| Dato | ¿Path param, query param o body? | Por qué |
+|---|---|---|
+| El id del libro que quiero ver | | |
+| El texto a buscar en el título | | |
+| Si quiero solo los disponibles | | |
+| El número de página | | |
+| El título de un libro nuevo | | |
+| El id del libro que quiero prestar | | |
+| La fecha en que devolvieron un préstamo | | |
+| El id del préstamo que quiero cerrar | | |
+
+**d)** Estas rutas están mal diseñadas. Decí qué regla rompe cada una y escribí la versión correcta:
+
+- `GET /obtenerLibros`
+- `GET /libros/buscar?titulo=ray`
+- `POST /libros/5/borrar`
+- `GET /Libro/5`
+- `GET /libros?id=5`
+- `GET /libros/disponibles`
+- `PUT /prestamos/12/devolver`
+- `GET /autores/2/libros/5/prestamos/12`
+- `DELETE /libros?id=5`
+- `POST /libros/5` (para modificar el título)
+
+**e)** Comparalo con un compañero. Donde no coincidan, discutan cuál es la correcta y por qué. Si las dos son válidas, es una decisión de diseño: anoten cuál eligen.
+
+Esta tabla es el mapa de todo lo que sigue. Los ejercicios 3 a 12 van llenando el contrato y el código de cada fila.
+
+**Preguntas rápidas**
+- `GET /libros/5` y `GET /libros?id=5` devuelven lo mismo. ¿Por qué la primera es correcta y la segunda no?
+- `GET /autores/2/libros` y `GET /libros?autor_id=2` también devuelven lo mismo. ¿Acá cuál es la correcta? ¿Cambia la respuesta respecto de la pregunta anterior?
+- Un query param nunca es obligatorio. ¿Por qué? ¿Qué pasa con un path param?
+- ¿Por qué el body no viaja en un `GET`?
+
+---
+
+## Ejercicio 3 · Contrato de autores
 
 📖 Teoría: 1.2 Paso 1: identificar recursos · 1.3 Paso 2: aplicar el estilo REST · 2.2 Qué tiene que definir el contrato de un endpoint · 2.3 OpenAPI / Swagger: el estándar · 2.6 Anatomía de un documento OpenAPI · 2.7 Schemas: la forma de los datos
 
@@ -75,11 +132,11 @@ En `docs/openapi.yaml`, usando la plantilla comentada que ya está ahí, escrib�
 
 ---
 
-## Ejercicio 3 · Primer flujo completo: autores
+## Ejercicio 4 · Primer flujo completo: autores
 
 📖 Teoría: 3.4 Interfaces: la forma de un objeto · 3.10 `async` y `Promise<T>` · 5.3 Cómo fluye un pedido en MVC · 5.5 El código, capa por capa · 5.9 La capa de repositorios · 4.5 Leer datos del pedido · 4.6 Responder · 4.11 Routers
 
-Implementá los dos endpoints del ejercicio 2, en este orden:
+Implementá los dos endpoints del ejercicio 3, en este orden:
 
 **a)** `src/types/autor.ts`: la `interface Autor`. Tiene que coincidir con la tabla del DER y con el schema del contrato.
 
@@ -101,7 +158,7 @@ Es el **único archivo que importa de `models/`**. Convertí las instancias de S
 
 ---
 
-## Ejercicio 4 · Contrato de la búsqueda de libros
+## Ejercicio 5 · Contrato de la búsqueda de libros
 
 📖 Teoría: 1.5 Paso 4: filtros, orden y paginación con query params · 1.7 Convenciones de nombres · 1.8 Forma de las respuestas · 2.7 Schemas: la forma de los datos
 
@@ -132,7 +189,7 @@ Decidí y documentá: ¿el libro se devuelve con `autor_id` solo, o con el autor
 
 ---
 
-## Ejercicio 5 · Implementar la búsqueda
+## Ejercicio 6 · Implementar la búsqueda
 
 📖 Teoría: 3.6 Tipos derivados · 3.9 Genéricos · 4.12 Convertir lo que llega por query string · 5.8 ORM · 5.5 El código, capa por capa
 
@@ -142,7 +199,7 @@ Decidí y documentá: ¿el libro se devuelve con `autor_id` solo, o con el autor
 
 **c)** Controlador: todo lo que llega por `req.query` es string. Convertí `disponible` a booleano, `autor_id`, `pagina` y `limite` a número, y aplicá los defaults y el máximo que definiste en el contrato **antes** de llamar al repositorio.
 
-**d)** Rutas y montaje. Probá desde Swagger: sin filtros, `?titulo=el`, `?disponible=true&autor_id=2`, `?pagina=2&limite=2`, y los casos raros de la pregunta rápida del ejercicio 4.
+**d)** Rutas y montaje. Probá desde Swagger: sin filtros, `?titulo=el`, `?disponible=true&autor_id=2`, `?pagina=2&limite=2`, y los casos raros de la pregunta rápida del ejercicio 5.
 
 **e)** Si en el contrato decidiste incluir el autor, usá `include` con el alias `"autor"` en el repositorio. Ajustá la interface o el schema para que coincidan con el JSON real.
 
@@ -151,7 +208,7 @@ Decidí y documentá: ¿el libro se devuelve con `autor_id` solo, o con el autor
 
 ---
 
-## Ejercicio 6 · Contrato de `POST /libros`
+## Ejercicio 7 · Contrato de `POST /libros`
 
 📖 Teoría: 2.2 Qué tiene que definir el contrato de un endpoint · 0.4 Status codes que vas a usar siempre
 
@@ -167,7 +224,7 @@ Cuando lo veas en Swagger, fijate que el formulario de **Try it out** ya te arma
 
 ---
 
-## Ejercicio 7 · Implementar `POST /libros`
+## Ejercicio 8 · Implementar `POST /libros`
 
 📖 Teoría: 3.6 Tipos derivados · 3.7 `any` y `unknown` · 4.7 Ejemplo completo: GET uno y POST · 4.8 TypeScript y el body
 
@@ -185,7 +242,7 @@ Cuando lo veas en Swagger, fijate que el formulario de **Try it out** ya te arma
 
 ---
 
-## Ejercicio 8 · PATCH y PUT: la misma ruta, dos significados
+## Ejercicio 9 · PATCH y PUT: la misma ruta, dos significados
 
 📖 Teoría: 0.3 Los verbos HTTP · 0.5 PUT y PATCH no son lo mismo · 3.6 Tipos derivados · 4.8 TypeScript y el body
 
@@ -203,7 +260,7 @@ Los dos devuelven 200 con el libro resultante, 404 si no existe, y 400 si el bod
 
 ---
 
-## Ejercicio 9 · Los dos DELETE
+## Ejercicio 10 · Los dos DELETE
 
 📖 Teoría: 0.4 Status codes que vas a usar siempre · 6.1 Buenas prácticas básicas
 
@@ -219,7 +276,7 @@ Contrato primero. En el 409, escribí un `example` con el mensaje real.
 
 ---
 
-## Ejercicio 10 · Contrato de préstamos
+## Ejercicio 11 · Contrato de préstamos
 
 📖 Teoría: 1.6 Paso 5: acciones que no son CRUD · 0.4 Status codes que vas a usar siempre
 
@@ -236,7 +293,7 @@ Documentá los efectos secundarios en la `description` de cada endpoint. Un clie
 
 ---
 
-## Ejercicio 11 · Implementar préstamos
+## Ejercicio 12 · Implementar préstamos
 
 📖 Teoría: 5.5 El código, capa por capa · 6.1 Buenas prácticas básicas
 

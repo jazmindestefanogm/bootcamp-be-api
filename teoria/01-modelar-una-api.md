@@ -11,6 +11,7 @@
 - 1.7 Convenciones de nombres
 - 1.8 Forma de las respuestas
 - 1.9 Del DER a los recursos
+- 1.10 Path params, query params y body: dónde viaja cada dato
 
 ---
 
@@ -179,3 +180,34 @@ Si tenés el diagrama entidad-relación de la base, ya tenés el 80% del modelad
 | Una columna que acepta `NULL` | Un campo `nullable` en el schema |
 
 Lo que el DER **no** te dice y tenés que decidir vos: qué operaciones se permiten sobre cada recurso, qué reglas de negocio hay (¿se puede borrar una categoría con productos?), y qué status devuelve cada error.
+
+## 1.10 · Path params, query params y body: dónde viaja cada dato
+
+Un pedido HTTP tiene tres lugares donde puede ir un dato. Elegir el correcto no es estético: cambia el significado del pedido.
+
+| Lugar | Ejemplo | Para qué sirve | Obligatorio | Verbos |
+|---|---|---|---|---|
+| **Path param** | `/productos/3` | **Identificar** un recurso puntual | Siempre | Todos |
+| **Query param** | `/productos?categoria_id=2&pagina=1` | **Refinar** una colección: filtrar, buscar, ordenar, paginar | Nunca | Casi siempre `GET` |
+| **Body** | `{ "nombre": "Teclado", "precio": 15000 }` | **Enviar datos** para crear o modificar | Según el contrato | `POST`, `PUT`, `PATCH` |
+
+**Path param: "cuál".** Va en la ruta porque **forma parte de la identidad** del recurso. `/productos/3` es un recurso distinto de `/productos/4`. Si falta, la URL apunta a otra cosa (`/productos` es la colección). Por eso un path param nunca es opcional: sin él no hay recurso.
+
+**Query param: "cuáles" o "cómo".** Va después del `?` porque **no cambia qué recurso es**, cambia qué parte de él ves o cómo. `/productos` y `/productos?categoria_id=2` son la misma colección, filtrada o no. Por eso un query param siempre es opcional: sin él, la colección completa. Y por eso siempre tiene un comportamiento por default definido.
+
+**Body: "con qué".** Va en el cuerpo porque son **datos que el servidor tiene que guardar o procesar**, y porque puede ser grande y estructurado. Un `GET` no lleva body: pedir no requiere enviar datos, y muchos clientes y proxies lo descartan.
+
+**Los errores típicos, y por qué lo son:**
+
+| Mal | Bien | Qué estaba mal |
+|---|---|---|
+| `GET /productos?id=3` | `GET /productos/3` | El id identifica, no filtra. Además, `?id=3` sugiere que podría faltar, y "el producto sin id" no existe. |
+| `GET /productos/disponibles` | `GET /productos?stock_minimo=1` | "Disponibles" no es un recurso, es un filtro sobre productos. Como sub-ruta, cada filtro nuevo sería una URL nueva y no se podrían combinar. |
+| `GET /productos/buscar?q=tecl` | `GET /productos?nombre=tecl` | "Buscar" es un verbo. La búsqueda es un refinamiento de la colección, así que es un query param sobre `/productos`. |
+| `POST /productos/3` para editar | `PATCH /productos/3` | El verbo dice qué hacer. `POST` sobre un id no tiene significado estándar. |
+| `DELETE /productos?id=3` | `DELETE /productos/3` | Borrar es sobre un recurso puntual: identificación, no filtro. `DELETE /productos?categoria_id=2` sería un borrado masivo, que casi nunca querés exponer. |
+| `POST /pedidos { "producto_id": 3 }` con `producto_id` en la ruta también | Elegí uno | El mismo dato no viaja en dos lugares. Si el pedido se crea "sobre" un producto, `POST /productos/3/pedidos` sin `producto_id` en el body; si no, `POST /pedidos` con el body. |
+
+**Cuando el mismo dato podría ir en dos lugares.** `GET /categorias/2/productos` y `GET /productos?categoria_id=2` son ambas correctas. La diferencia es de énfasis: la primera dice "los productos **de esta categoría**", la segunda "productos, **filtrados** por categoría". La segunda se combina con otros filtros; la primera no. Si dudás, el query param es la opción más flexible. Lo que no se hace es ofrecer las dos con comportamientos distintos.
+
+**Una regla para decidir rápido:** si sacás el dato, ¿la URL sigue apuntando a algo con sentido? Si sí, era un query param. Si no, era un path param. Y si el dato es algo que el servidor tiene que **guardar**, es body.
