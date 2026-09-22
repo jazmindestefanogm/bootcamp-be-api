@@ -1,7 +1,7 @@
 {
-  "name": "biblioteca-api",
+  "name": "library-api",
   "version": "1.0.0",
-  "description": "API de una biblioteca: libros, autores y préstamos. Starter para la clase De la base de datos a la API.",
+  "description": "Library API: books, authors and loans. Starter for the class De la base de datos a la API.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

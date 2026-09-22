@@ -1,0 +1,492 @@
+# Contrato de la Library API, en formato OpenAPI 3.0.
+# Se sirve en http://localhost:3000/docs con Swagger UI. Guardá el archivo y recargá la página.
+#
+# Regla de toda la clase: el contrato de un endpoint se escribe ACÁ antes de programarlo.
+
+openapi: 3.0.3
+
+info:
+  title: Library API
+  version: 1.0.0
+  description: |
+    Books, authors and loans of a library.
+
+    **Conventions**
+    - All requests and responses are JSON.
+    - Dates use the `YYYY-MM-DD` format.
+    - All errors have the shape `{ "error": "..." }` (see the `Error` schema).
+
+servers:
+  - url: http://localhost:3000
+
+# ──────────────────────────────────────────────────────────────
+# Endpoints. Un bloque por ruta; dentro, un bloque por verbo.
+# Empezá por /authors. Abajo hay una plantilla comentada para copiar.
+# ──────────────────────────────────────────────────────────────
+paths:
+  /authors:
+    get:
+      summary: List all authors
+      tags: [Authors]
+      responses:
+        "200":
+          description: List of authors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Author"
+  /authors/{id}:
+    get:
+      summary: Get an author by id
+      tags: [Authors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Author found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Author"
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete an author (only if it has no books)
+      tags: [Authors]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Author deleted
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Author has books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /books:
+    get:
+      summary: Search books with filters and pagination
+      tags: [Books]
+      parameters:
+        - name: title
+          in: query
+          required: false
+          schema: { type: string }
+        - name: available
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: author_id
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 10 }
+      responses:
+        "200":
+          description: Page of books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookPage"
+        "400":
+          description: Invalid query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a book
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBook"
+      responses:
+        "201":
+          description: Book created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /books/{id}:
+    get:
+      summary: Get a book by id
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Book found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Update some fields of a book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBook"
+      responses:
+        "200":
+          description: Book updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Invalid id or body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book or author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Replace all fields of a book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBook"
+      responses:
+        "200":
+          description: Book replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Invalid id or body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book or author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a book (only if it was never loaned)
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Book deleted
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Book has loans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /loans:
+    get:
+      summary: List loans
+      tags: [Loans]
+      parameters:
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: List of loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Loan"
+        "400":
+          description: Invalid query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Loan a book
+      description: "When a book is loaned, it becomes `available: false`."
+      tags: [Loans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewLoan"
+      responses:
+        "201":
+          description: Loan created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Book is not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /loans/{id}:
+    patch:
+      summary: Register that a loan was returned
+      description: "When a loan is returned, the book becomes `available: true` again."
+      tags: [Loans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoanReturn"
+      responses:
+        "200":
+          description: Loan returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Loan"
+        "400":
+          description: Invalid id or body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Loan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Loan already returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+# Plantilla de un endpoint (descomentá, pegá dentro de `paths:` y completá):
+#
+#  /resource/{id}:
+#    get:
+#      summary: What it does, in one line
+#      tags: [Resource]
+#      parameters:
+#        - name: id
+#          in: path
+#          required: true
+#          schema: { type: integer }
+#      requestBody:                       # solo en POST / PUT / PATCH
+#        required: true
+#        content:
+#          application/json:
+#            schema:
+#              $ref: "#/components/schemas/NewResource"
+#      responses:
+#        "200":
+#          description: Resource found
+#          content:
+#            application/json:
+#              schema:
+#                $ref: "#/components/schemas/Resource"
+#        "404":
+#          description: Resource not found
+#          content:
+#            application/json:
+#              schema:
+#                $ref: "#/components/schemas/Error"
+#              example:
+#                error: Resource not found
+
+# ──────────────────────────────────────────────────────────────
+# Schemas: la forma de los datos. Tienen que coincidir con las
+# tablas de la base y con las interfaces de src/types/.
+# ──────────────────────────────────────────────────────────────
+components:
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Book not found
+    Author:
+      type: object
+      required: [id, name, nationality]
+      properties:
+        id: { type: integer, example: 1 }
+        name: { type: string, example: Julio Cortázar }
+        nationality: { type: string, example: Argentina }
+    Book:
+      type: object
+      required: [id, title, year, author_id, available]
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: Rayuela }
+        year: { type: integer, example: 1963 }
+        author_id: { type: integer, example: 1 }
+        available: { type: boolean, example: true }
+    NewBook:
+      type: object
+      required: [title, year, author_id]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Rayuela }
+        year: { type: integer, minimum: 1000, maximum: 2100, example: 1963 }
+        author_id: { type: integer, example: 1 }
+    UpdateBook:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Rayuela }
+        year: { type: integer, minimum: 1000, maximum: 2100, example: 1963 }
+        author_id: { type: integer, example: 1 }
+    BookPage:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+        total: { type: integer, example: 6 }
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 10 }
+    Loan:
+      type: object
+      required: [id, book_id, member_name, loan_date, return_date]
+      properties:
+        id: { type: integer, example: 1 }
+        book_id: { type: integer, example: 2 }
+        member_name: { type: string, example: Sofía }
+        loan_date: { type: string, example: "2026-09-22" }
+        return_date: { type: string, nullable: true, example: null }
+    NewLoan:
+      type: object
+      required: [book_id, member_name]
+      properties:
+        book_id: { type: integer, example: 3 }
+        member_name: { type: string, minLength: 1, example: Sofía }
+    LoanReturn:
+      type: object
+      required: [return_date]
+      properties:
+        return_date: { type: string, example: "2026-09-30" }

@@ -12,13 +12,13 @@ erDiagram
     BOOKS   ||--o{ LOANS : "is loaned in"
 
     AUTHORS {
-        INTEGER id PK "autoincremental"
+        INTEGER id PK "autoincrement"
         VARCHAR(100) name "NOT NULL"
         VARCHAR(50) nationality "NOT NULL"
     }
 
     BOOKS {
-        INTEGER id PK "autoincremental"
+        INTEGER id PK "autoincrement"
         VARCHAR(200) title "NOT NULL"
         INTEGER year "NOT NULL"
         INTEGER author_id FK "NOT NULL → authors.id"
@@ -26,11 +26,11 @@ erDiagram
     }
 
     LOANS {
-        INTEGER id PK "autoincremental"
+        INTEGER id PK "autoincrement"
         INTEGER book_id FK "NOT NULL → books.id"
         VARCHAR(100) member_name "NOT NULL"
         DATE loan_date "NOT NULL, YYYY-MM-DD"
-        DATE return_date "NULL = todavía no devuelto"
+        DATE return_date "NULL = not returned yet"
     }
 ```
 

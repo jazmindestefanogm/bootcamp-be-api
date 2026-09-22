@@ -1,0 +1,162 @@
+> **Resolución esperada de la práctica (solo para docentes).** Es `library-api` con los pasos 1 a 5 de `practica.md` ya resueltos. Se usa igual: `npm install`, `npm run seed`, `npm run dev`.
+
+# Library API · Starter
+
+Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos y los modelos ya hechos. Vos vas a escribir el contrato, las rutas, los controladores, los services y los repositorios.
+
+## Requisitos
+
+- Node.js 18 o superior
+- PostgreSQL y pgAdmin instalados
+- Un cliente HTTP: Thunder Client, REST Client, Postman o Insomnia
+
+## Preparar la base de datos
+
+1. Abrí **pgAdmin** y conectate a tu servidor de Postgres.
+2. Clic derecho en **Databases** → **Create** → **Database...** → en **Database** escribí `library` → **Save**. La base queda vacía: las tablas las crea `npm run seed`.
+3. Abrí `src/db/connection.ts` y poné tu usuario y contraseña de Postgres (los que elegiste al instalarlo). Si no cambiaste nada, el usuario es `postgres`.
+
+## Instalar y correr
+
+```bash
+npm install
+npm run seed     # crea las tablas en la base `library` y carga datos de ejemplo
+npm run dev      # levanta el servidor en http://localhost:3000
+```
+
+Si entrás a `http://localhost:3000` y ves `{ "message": "Library API running" }`, está todo bien.
+
+En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `docs/openapi.yaml`. Arranca vacío. Cada vez que guardás el YAML, recargá la página: no hace falta reiniciar el servidor. Desde ahí también podés probar los endpoints con **Try it out**.
+
+`npm run seed` se puede correr las veces que quieras: borra todo y vuelve a cargar los datos de ejemplo.
+
+Si `npm run seed` o `npm run dev` fallan con un error de conexión:
+
+| Mensaje | Qué revisar |
+|---|---|
+| `password authentication failed` | El usuario o la contraseña de `src/db/connection.ts`. |
+| `database "library" does not exist` | Que creaste la base en pgAdmin con ese nombre exacto, en minúscula. |
+| `ECONNREFUSED` | Que Postgres esté prendido y que el puerto sea `5432`. |
+
+## Qué hay adentro
+
+```
+src/
+├── server.ts            ← arranca Express. Acá montás tus routers.
+├── docs.ts              ← YA HECHO. Sirve docs/openapi.yaml en /docs con Swagger UI.
+├── db/
+│   ├── connection.ts    ← conexión a PostgreSQL. Acá va tu usuario y contraseña.
+│   └── seed.ts          ← crea las tablas y carga datos de ejemplo
+├── models/              ← YA HECHO. Modelos de Sequelize = tablas de la DB.
+│   ├── Author.ts
+│   ├── Book.ts
+│   ├── Loan.ts
+│   └── index.ts         ← relaciones. Importá los modelos siempre desde acá.
+├── types/               ← VOS. Interfaces del dominio y tipos derivados.
+├── repositories/        ← VOS. Acceso a datos. El único lugar que usa Sequelize.
+├── controllers/         ← VOS. HTTP: lee req, valida, llama al service, responde.
+├── services/            ← VOS. Reglas del negocio. Llama a los repositorios.
+└── routes/              ← VOS. Mapa verbo + ruta → controlador.
+
+docs/
+├── DER.md               ← YA HECHO. Diagrama entidad-relación de la base.
+└── openapi.yaml         ← VOS. El contrato de la API en OpenAPI. Se escribe ANTES del código.
+```
+
+## Base de datos
+
+```
+authors              books                      loans
+──────────           ──────────────             ────────────────
+id                   id                         id
+name                 title                      book_id   → books.id
+nationality          year                       member_name
+                     author_id → authors.id     loan_date
+                     available                  return_date  (null = no devuelto)
+```
+
+El diagrama entidad-relación completo, con cardinalidades y claves, está en `docs/DER.md`.
+
+Datos de ejemplo: 5 autores (el último sin libros), 6 libros (2 prestados), 3 préstamos (2 activos).
+
+Para mirar la base directamente, en pgAdmin andá a **library** → **Schemas** → **public** → **Tables**, clic derecho en una tabla → **View/Edit Data** → **All Rows**.
+
+## Sequelize en cinco líneas
+
+Lo que vas a usar en los repositorios:
+
+```ts
+import { Op } from "sequelize";
+import { Book, Author } from "../models/index.js";
+
+await Book.findAll();                                   // SELECT * FROM books
+await Book.findAll({ where: { available: true } });     // ... WHERE available = true
+await Book.findByPk(3);                                 // ... WHERE id = 3   → Book | null
+await Book.findAll({ include: { model: Author, as: "author" } }); // JOIN con authors
+await Book.create({ title: "...", year: 1963, author_id: 7 });    // INSERT
+await book.update({ available: false });                // UPDATE de una instancia
+await book.destroy();                                   // DELETE de una instancia
+await Book.count({ where: { author_id: 2 } });          // SELECT COUNT(*) ...
+```
+
+Para la búsqueda con paginación:
+
+```ts
+// Búsqueda parcial: ILIKE '%ray%'. En Postgres, LIKE distingue mayúsculas e ILIKE no.
+const where: Record<string, unknown> = {};
+if (filters.title !== undefined) where.title = { [Op.iLike]: `%${filters.title}%` };
+if (filters.available !== undefined) where.available = filters.available;
+
+// Devuelve las filas de la página Y el total de filas que cumplen el where.
+const { rows, count } = await Book.findAndCountAll({
+  where,
+  limit: pagination.limit,                              // cuántas filas
+  offset: (pagination.page - 1) * pagination.limit,     // cuántas saltar
+  order: [["id", "ASC"]],                               // siempre ordená al paginar, o las páginas se mezclan
+});
+```
+
+Cada instancia tiene los campos como propiedades (`book.title`) y `book.toJSON()` para convertirla a un objeto plano. `findAndCountAll` devuelve `rows` (instancias) y `count` (número).
+
+## OpenAPI en cinco líneas
+
+Lo que vas a usar en `docs/openapi.yaml`:
+
+```yaml
+paths:
+  /books/{id}:                           # la ruta; los parámetros van entre llaves
+    get:                                 # el verbo, en minúscula
+      summary: Get a book by id
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":                           # el status, entre comillas
+          description: Book found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Book" }
+
+components:
+  schemas:
+    Book:                                # un schema por forma de dato
+      type: object
+      required: [id, title]              # qué campos son obligatorios
+      properties:
+        id:     { type: integer, example: 3 }
+        title:  { type: string,  example: Rayuela }
+```
+
+Un `requestBody` se escribe igual que un `content` de respuesta. Tipos: `integer`, `number`, `string`, `boolean`. Reglas: `minLength`, `maxLength`, `minimum`, `maximum`, `nullable: true`. Un query param es un parámetro con `in: query` y `required: false`.
+
+## Arquitectura esperada
+
+```
+Cliente → routes → controllers → services → repositories → models (Sequelize) → PostgreSQL
+```
+
+Reglas:
+
+- Los **controladores** no importan nada de `models/` ni de Sequelize. Solo llaman a los services.
+- Los **services** no conocen `req` ni `res` ni eligen status codes. Aplican las reglas del negocio y llaman a los repositorios.
+- Los **repositorios** no conocen `req` ni `res`. Reciben y devuelven tipos de `types/`.
+- Las **rutas** solo mapean. Sin lógica.

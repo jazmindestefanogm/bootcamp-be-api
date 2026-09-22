@@ -1,6 +1,6 @@
 # De la base de datos a la API — Práctica
 
-Vas a construir, paso a paso, la API de una biblioteca: **Library API** (carpeta `biblioteca-api`). Al final vas a tener 12 endpoints funcionando contra una base de datos real.
+Vas a construir, paso a paso, la API de una biblioteca: **Library API** (carpeta `library-api`). Al final vas a tener 12 endpoints funcionando contra una base de datos real.
 
 **Todo el código se escribe en inglés**: nombres de archivos, variables, funciones, tipos, rutas, campos del JSON y mensajes de error. Es la costumbre en programación, y así vas a leer casi toda la documentación que encuentres. Los comentarios los podés escribir en castellano. Este mini diccionario te va a servir en toda la práctica:
 
@@ -101,9 +101,9 @@ Esta es la lista completa de lo que vas a construir. Todos los pasos se refieren
 
 1. Abrí **pgAdmin** y conectate a tu servidor.
 2. Clic derecho en **Databases** → **Create** → **Database...** → en **Database** escribí `library` (todo en minúscula) → **Save**. La base queda vacía; las tablas se crean solas en el punto siguiente.
-3. Abrí `biblioteca-api/src/db/connection.ts` y cambiá `USER` y `PASSWORD` por los que elegiste al instalar Postgres.
+3. Abrí `library-api/src/db/connection.ts` y cambiá `USER` y `PASSWORD` por los que elegiste al instalar Postgres.
 
-**Después, el proyecto.** En una terminal, dentro de la carpeta `biblioteca-api`:
+**Después, el proyecto.** En una terminal, dentro de la carpeta `library-api`:
 
 ```bash
 npm install      # instala las dependencias (solo la primera vez)
@@ -125,7 +125,10 @@ Si `npm run seed` falla, leé el mensaje de error:
 |---|---|
 | `password authentication failed` | El usuario o la contraseña en `src/db/connection.ts`. |
 | `database "library" does not exist` | Que creaste la base en pgAdmin con ese nombre exacto. |
-| `ECONNREFUSED` | Que Postgres esté prendido. |
+| `ECONNREFUSED` | Que Postgres esté prendido. Si lo está, fijate en pgAdmin (clic derecho en tu servidor → **Properties** → **Connection**) qué **Port** usa: si no es `5432`, cambiá `PORT` en `src/db/connection.ts`. |
+| `npm` no se reconoce como comando | Falta instalar Node.js (versión 18 o más nueva). Después de instalarlo, cerrá y volvé a abrir la terminal. |
+| En Windows: `la ejecución de scripts está deshabilitada` | Usá la terminal **Command Prompt** (cmd) en vez de PowerShell. |
+| `EADDRINUSE: address already in use :::3000` (al hacer `npm run dev`) | Ya tenés el servidor corriendo en otra terminal. Cerrala, o cortala con `Ctrl + C`. |
 
 ---
 
@@ -242,7 +245,11 @@ Usá `tags: [Loans]`.
 
 El endpoint 10 tiene un query param `active` (boolean, opcional).
 
-En el `description` del endpoint 11 escribí: *"When a book is loaned, it becomes `available: false`."* En el del 12: *"When a loan is returned, the book becomes `available: true` again."*
+En el `description` del endpoint 11 escribí: *"When a book is loaned, it becomes `available: false`."* En el del 12: *"When a loan is returned, the book becomes `available: true` again."* Poné el texto **entre comillas dobles**, porque tiene dos puntos adentro y sin comillas YAML da error:
+
+```yaml
+description: "When a book is loaned, it becomes `available: false`."
+```
 
 **Prueba del paso 1.** En `http://localhost:3000/docs` se ven los 12 endpoints, agrupados en Authors, Books y Loans, sin ningún mensaje de error. Abajo de todo se ven los 9 schemas.
 
