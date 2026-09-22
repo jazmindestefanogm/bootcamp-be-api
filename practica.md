@@ -279,8 +279,11 @@ Creá **`src/types/book.ts`** con:
 - `type NewBook = Omit<Book, "id" | "available">;` → un libro sin `id` ni `available` (esos los pone la API).
 - `type UpdateBook = Partial<NewBook>;` → los mismos campos, pero todos opcionales.
 - `interface BookFilters` con `title?: string`, `available?: boolean`, `author_id?: number`. El `?` significa "puede no venir".
+
+Creá **`src/types/common.ts`** para los tipos que no son de un recurso en particular y se pueden usar con cualquiera:
+
 - `interface Pagination` con `page: number` y `limit: number`.
-- `interface Page<T>` con `data: T[]`, `total: number`, `page: number`, `limit: number`.
+- `interface Page<T>` con `data: T[]`, `total: number`, `page: number`, `limit: number`. La `T` es "el tipo de lo que hay adentro": `Page<Book>` es una página de libros, `Page<Loan>` sería una de préstamos.
 
 Creá **`src/types/loan.ts`** con:
 
@@ -392,7 +395,8 @@ Creá **`src/repositories/books.repository.ts`** con estas funciones:
 ```ts
 import { Op } from "sequelize";
 import { Book as BookModel } from "../models/index.js";
-import { Book, NewBook, UpdateBook, BookFilters, Pagination, Page } from "../types/book.js";
+import { Book, NewBook, UpdateBook, BookFilters } from "../types/book.js";
+import { Pagination, Page } from "../types/common.js";
 
 export async function search(filters: BookFilters, pagination: Pagination): Promise<Page<Book>> {
   const where: Record<string, unknown> = {};
@@ -474,7 +478,7 @@ Después, corré **`npm run seed`** para dejar la base como al principio.
 
 > **Lo que todavía anda mal (y está bien que ande mal):**
 > - `GET /authors/999` responde 200 con `null`. Debería ser 404. → Paso 4.
-> - `GET /authors/abc` o un body con datos incorrectos rompen el pedido. → Paso 4.
+> - `GET /authors/abc` o un body con datos incorrectos rompen el pedido: Swagger se queda cargando y la terminal muestra el error (ver abajo). → Paso 4.
 > - Después de prestar el libro 3, `GET /books/3` sigue diciendo `available: true`. → Paso 5.
 > - `DELETE /authors/1` falla, porque la base no deja borrar un autor con libros. → Paso 5.
 >
@@ -586,19 +590,24 @@ Hacé lo mismo en **todos** los endpoints que tienen `:id` (son 6):
 
 En `search`, leé cada query param y convertilo. Si un param **no viene**, no es un error: simplemente no se filtra por eso.
 
-| Param | Si no viene | Cómo se convierte | Es 400 si... |
-|---|---|---|---|
-| `title` | no se filtra | se usa tal cual | nunca |
-| `available` | no se filtra | `"true"` → `true`, `"false"` → `false` | es cualquier otra cosa |
-| `author_id` | no se filtra | con `parseId` | `parseId` devuelve `null` |
-| `page` | vale `1` | con `Number` | no es un entero, o es menor que 1 |
-| `limit` | vale `10` | con `Number` | no es un entero, o es menor que 1. Si es mayor que 50, **no** es error: se usa 50. |
+| Param | Si no viene | Cómo se convierte | Es 400 si... | Mensaje del 400 |
+|---|---|---|---|---|
+| `title` | no se filtra | se usa tal cual | nunca | — |
+| `available` | no se filtra | `"true"` → `true`, `"false"` → `false` | es cualquier otra cosa | `"available must be true or false"` |
+| `author_id` | no se filtra | con `parseId` | `parseId` devuelve `null` | `"author_id must be an integer"` |
+| `page` | vale `1` | con `Number` | no es un entero, o es menor que 1 | `"page must be an integer greater than 0"` |
+| `limit` | vale `10` | con `Number` | no es un entero, o es menor que 1. Si es mayor que 50, **no** es error: se usa 50. | `"limit must be an integer greater than 0"` |
 
 Para saber si un query param vino: `if (req.query.available !== undefined)`. Para usarlo como texto: `String(req.query.available)`.
 
 Agregá a `validations.ts` una función `parseBoolean(text: string): boolean | null` que devuelva `true`, `false` o `null` si el texto no es ni `"true"` ni `"false"`. La vas a usar también en préstamos.
 
-Con los valores ya convertidos, armá un objeto `BookFilters` y uno `Pagination` y pasáselos a `BooksRepository.search`, en lugar del `{}` y `{ page: 1, limit: 10 }` fijos que tenías.
+Con los valores ya convertidos, armá un objeto `BookFilters` y uno `Pagination` y pasáselos a `BooksRepository.search`, en lugar del `{}` y `{ page: 1, limit: 10 }` fijos que tenías. Para usar esos tipos, importalos arriba del controller:
+
+```ts
+import { BookFilters } from "../types/book.js";
+import { Pagination } from "../types/common.js";
+```
 
 ### 4.d · Body de libros (`POST`, `PUT` y `PATCH`)
 
@@ -620,6 +629,8 @@ export function validateBook(body: any, allRequired: boolean): string | null {
 
   // Completá vos: `year` (entero de 1000 a 2100) y `author_id` (entero mayor que 0),
   // con la misma forma que `title`. Para ver si es entero: Number.isInteger(year).
+  // Mensajes: "Missing field: year", "year must be an integer from 1000 to 2100",
+  //           "Missing field: author_id", "author_id must be an integer greater than 0".
 
   return null;
 }
@@ -633,6 +644,9 @@ En los controllers:
 **Ahora sacá el `req.body` directo.** Hasta acá le pasabas al repository todo lo que mandaba el cliente. Si alguien mandaba `"available": false` o `"id": 99`, se guardaba. Armá un **DTO** (📖 5.10) solo con los campos permitidos:
 
 ```ts
+// Arriba del controller, sumá NewBook y UpdateBook al import de los tipos:
+import { BookFilters, NewBook, UpdateBook } from "../types/book.js";
+
 // En create y replace: los tres campos son obligatorios y ya están validados.
 const data: NewBook = {
   title: req.body.title,
@@ -651,9 +665,21 @@ Y le pasás `data` o `changes` al repository, **nunca** `req.body`.
 
 ### 4.e · Préstamos
 
-- `list`: si viene `active`, convertilo con `parseBoolean`. Si da `null` → 400. Si no vino, usá `false`. Pasáselo a `LoansRepository.findAll`.
-- `create`: `book_id` tiene que ser un entero mayor que 0 y `member_name` un texto no vacío. Si no → 400. Armá un `NewLoan` con esos dos campos.
-- `registerReturn`: `return_date` tiene que ser un texto con formato `YYYY-MM-DD`. Para revisarlo usá: `/^\d{4}-\d{2}-\d{2}$/.test(return_date)`. Si no → 400.
+Importá los tipos arriba del controller: `import { NewLoan, LoanReturn } from "../types/loan.js";`.
+
+- `list`: si viene `active`, convertilo con `parseBoolean`. Si da `null` → 400 `"active must be true or false"`. Si no vino, usá `false`. Pasáselo a `LoansRepository.findAll`.
+- `create`: `book_id` tiene que ser un entero mayor que 0 (si no → 400 `"book_id must be an integer greater than 0"`) y `member_name` un texto no vacío (si no → 400 `"member_name must be a non-empty string"`). Después armá el DTO con esos dos campos: `const data: NewLoan = { book_id, member_name };` y pasale `data` al repository.
+- `registerReturn`: `return_date` tiene que ser un texto con formato `YYYY-MM-DD`. Si no → 400 `"return_date must have the format YYYY-MM-DD"`. La condición completa es:
+
+  ```ts
+  const { return_date } = req.body;
+  if (typeof return_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(return_date)) {
+    return res.status(400).json({ error: "return_date must have the format YYYY-MM-DD" });
+  }
+  const data: LoanReturn = { return_date };
+  ```
+
+  Y al repository le pasás `data.return_date`. (En el paso 5 el service va a recibir `data` entero.)
 
 Cuando termines, borrá todos los comentarios `// TEMPORAL` que queden en las rutas: ya no hay lógica ahí.
 
@@ -783,6 +809,13 @@ Creá **`src/services/books.service.ts`** con estas funciones:
 | `update(id, changes: UpdateBook)` | Si el libro no existe → `"BOOK_NOT_FOUND"`. Si en los cambios viene `author_id` y ese autor no existe → `"AUTHOR_NOT_FOUND"`. Si no, actualiza. | `Book \| "BOOK_NOT_FOUND" \| "AUTHOR_NOT_FOUND"` |
 | `remove(id)` | Si el libro no existe → `"BOOK_NOT_FOUND"`. Si `LoansRepository.countByBook(id)` es mayor que 0 → `"HAS_LOANS"`. Si no, lo borra. | `"DELETED" \| "BOOK_NOT_FOUND" \| "HAS_LOANS"` |
 
+En `update` pasa lo mismo que vas a ver en préstamos: `BooksRepository.update` devuelve `Book | null`, y `null` no está en el tipo de la función. Terminala así:
+
+```ts
+const updated = await BooksRepository.update(id, changes);
+return updated ?? "BOOK_NOT_FOUND"; // `??`: si es null, usá lo de la derecha
+```
+
 `update` (PATCH) y `replace` (PUT) del controller llaman **los dos** a `BooksService.update`. La diferencia entre PATCH y PUT ya la resolvió la validación del paso 4.
 
 En **`books.controller.ts`**, cambiá el repository por el service en las 6 funciones:
@@ -818,7 +851,15 @@ Creá **`src/services/loans.service.ts`**:
 2. Si `loan.return_date` **no** es `null`, ya se devolvió → `"ALREADY_RETURNED"`.
 3. Guardar la devolución con `LoansRepository.registerReturn(id, data.return_date)`.
 4. Marcar el libro como disponible: `BooksRepository.setAvailability(loan.book_id, true)`.
-5. Devolver el préstamo actualizado.
+5. Devolver el préstamo actualizado. Ojo: `LoansRepository.registerReturn` devuelve `Loan | null`, y TypeScript no deja devolver `null` porque no está en el tipo de la función. Como en el paso 1 ya revisaste que el préstamo existe, escribí:
+
+   ```ts
+   const updated = await LoansRepository.registerReturn(id, data.return_date);
+   await BooksRepository.setAvailability(loan.book_id, true);
+   return updated ?? "LOAN_NOT_FOUND";
+   ```
+
+   El `??` significa "si lo de la izquierda es `null`, usá lo de la derecha". En la práctica nunca va a ser `null`, pero así TypeScript queda tranquilo.
 
 En **`loans.controller.ts`**, cambiá el repository por el service:
 
@@ -834,7 +875,7 @@ Con el buscador de VS Code (lupa de la izquierda), buscá dentro de `src/`:
 | `repository.js` | `src/services/` |
 | `service.js` | `src/controllers/` |
 | `controller.js` | `src/routes/` |
-| `models/index.js` | `src/repositories/` (y en `src/db/`, que ya venía hecho) |
+| `models/index.js` | `src/repositories/` (y en `src/db/` y `src/models/`, que ya venían hechos) |
 | `TEMPORAL` | en ningún lado |
 
 **Prueba del paso 5.** Corré `npm run seed` y probá **en este orden**:
@@ -857,14 +898,14 @@ Con el buscador de VS Code (lupa de la izquierda), buscá dentro de `src/`:
 | 14 | `GET /books/3` | `available: true` |
 | 15 | `PATCH /loans/4` con `{ "return_date": "2026-09-30" }` | 409, ya fue devuelto |
 
-Por último, repetí la tabla del paso 4: tiene que seguir dando todo igual.
+Por último, corré `npm run seed` otra vez y repetí la tabla del paso 4: tiene que seguir dando todo igual.
 
 ---
 
 ## Entrega
 
 - [ ] `docs/openapi.yaml` con los 12 endpoints y los 9 schemas. `/docs` carga sin errores.
-- [ ] `src/types/`: `author.ts`, `book.ts`, `loan.ts`.
+- [ ] `src/types/`: `author.ts`, `book.ts`, `loan.ts`, `common.ts`.
 - [ ] `src/routes/`, `src/controllers/`, `src/services/`, `src/repositories/`: un archivo por recurso (authors, books, loans), más `controllers/validations.ts`.
 - [ ] Todo el código (archivos, variables, funciones, tipos, rutas, campos y mensajes de error) está en inglés.
 - [ ] La revisión de capas del paso 5.d da todo bien.

@@ -36,7 +36,7 @@ Si `npm run seed` o `npm run dev` fallan con un error de conexión:
 |---|---|
 | `password authentication failed` | El usuario o la contraseña de `src/db/connection.ts`. |
 | `database "library" does not exist` | Que creaste la base en pgAdmin con ese nombre exacto, en minúscula. |
-| `ECONNREFUSED` | Que Postgres esté prendido y que el puerto sea `5432`. |
+| `ECONNREFUSED` | Que Postgres esté prendido. Si lo está, fijate en pgAdmin (clic derecho en tu servidor → **Properties** → **Connection**) qué **Port** usa: si no es `5432`, cambiá `PORT` en `src/db/connection.ts`. |
 
 ## Qué hay adentro
 

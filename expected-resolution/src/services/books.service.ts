@@ -1,7 +1,8 @@
 import * as AuthorsRepository from "../repositories/authors.repository.js";
 import * as BooksRepository from "../repositories/books.repository.js";
 import * as LoansRepository from "../repositories/loans.repository.js";
-import { Book, NewBook, UpdateBook, BookFilters, Pagination, Page } from "../types/book.js";
+import { Book, NewBook, UpdateBook, BookFilters } from "../types/book.js";
+import { Pagination, Page } from "../types/common.js";
 
 export async function search(filters: BookFilters, pagination: Pagination): Promise<Page<Book>> {
   return BooksRepository.search(filters, pagination);

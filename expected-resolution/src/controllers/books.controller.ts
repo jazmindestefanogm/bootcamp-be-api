@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import * as BooksService from "../services/books.service.js";
-import { BookFilters, Pagination, NewBook, UpdateBook } from "../types/book.js";
+import { BookFilters, NewBook, UpdateBook } from "../types/book.js";
+import { Pagination } from "../types/common.js";
 import { parseId, parseBoolean, validateBook } from "./validations.js";
 
 const MAX_LIMIT = 50;

@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import { Book as BookModel } from "../models/index.js";
-import { Book, NewBook, UpdateBook, BookFilters, Pagination, Page } from "../types/book.js";
+import { Book, NewBook, UpdateBook, BookFilters } from "../types/book.js";
+import { Pagination, Page } from "../types/common.js";
 
 export async function findById(id: number): Promise<Book | null> {
   const row = await BookModel.findByPk(id);
