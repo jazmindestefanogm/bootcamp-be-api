@@ -1,4 +1,4 @@
-# Contrato de la API Biblioteca, en formato OpenAPI 3.0.
+# Contrato de la Library API, en formato OpenAPI 3.0.
 # Se sirve en http://localhost:3000/docs con Swagger UI. Guardá el archivo y recargá la página.
 #
 # Regla de toda la clase: el contrato de un endpoint se escribe ACÁ antes de programarlo.
@@ -6,31 +6,31 @@
 openapi: 3.0.3
 
 info:
-  title: API Biblioteca
+  title: Library API
   version: 1.0.0
   description: |
-    Libros, autores y préstamos de una biblioteca.
+    Books, authors and loans of a library.
 
-    **Convenciones**
-    - Todos los pedidos y respuestas son JSON.
-    - Las fechas van en formato `YYYY-MM-DD`.
-    - Todos los errores tienen la forma `{ "error": "..." }` (ver schema `Error`).
+    **Conventions**
+    - All requests and responses are JSON.
+    - Dates use the `YYYY-MM-DD` format.
+    - All errors have the shape `{ "error": "..." }` (see the `Error` schema).
 
 servers:
   - url: http://localhost:3000
 
 # ──────────────────────────────────────────────────────────────
 # Endpoints. Un bloque por ruta; dentro, un bloque por verbo.
-# Empezá por /autores. Abajo hay una plantilla comentada para copiar.
+# Empezá por /authors. Abajo hay una plantilla comentada para copiar.
 # ──────────────────────────────────────────────────────────────
 paths: {}
 
 # Plantilla de un endpoint (descomentá, pegá dentro de `paths:` y completá):
 #
-#  /recurso/{id}:
+#  /resource/{id}:
 #    get:
-#      summary: Qué hace, en una línea
-#      tags: [Recurso]
+#      summary: What it does, in one line
+#      tags: [Resource]
 #      parameters:
 #        - name: id
 #          in: path
@@ -41,22 +41,22 @@ paths: {}
 #        content:
 #          application/json:
 #            schema:
-#              $ref: "#/components/schemas/NuevoRecurso"
+#              $ref: "#/components/schemas/NewResource"
 #      responses:
 #        "200":
-#          description: Recurso encontrado
+#          description: Resource found
 #          content:
 #            application/json:
 #              schema:
-#                $ref: "#/components/schemas/Recurso"
+#                $ref: "#/components/schemas/Resource"
 #        "404":
-#          description: Recurso no encontrado
+#          description: Resource not found
 #          content:
 #            application/json:
 #              schema:
 #                $ref: "#/components/schemas/Error"
 #              example:
-#                error: Recurso no encontrado
+#                error: Resource not found
 
 # ──────────────────────────────────────────────────────────────
 # Schemas: la forma de los datos. Tienen que coincidir con las
@@ -70,4 +70,4 @@ components:
       properties:
         error:
           type: string
-          example: Libro no encontrado
+          example: Book not found

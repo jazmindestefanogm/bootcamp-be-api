@@ -1,20 +1,23 @@
 // Punto único de entrada a los modelos.
-// Importá siempre desde acá: `import { Libro, Autor } from "../models/index.js"`.
+// Importá siempre desde acá: `import { Book, Author } from "../models/index.js"`.
 // Así las relaciones quedan definidas antes de usarlas.
 
-import { Autor } from "./Autor.js";
-import { Libro } from "./Libro.js";
-import { Prestamo } from "./Prestamo.js";
+import { Author } from "./Author.js";
+import { Book } from "./Book.js";
+import { Loan } from "./Loan.js";
 
 // Relaciones
 // ──────────
-// Un autor tiene muchos libros.   Autor 1 ──< N Libro
-// Un libro tiene muchos préstamos. Libro 1 ──< N Prestamo
+// Un autor tiene muchos libros.    Author 1 ──< N Book
+// Un libro tiene muchos préstamos. Book   1 ──< N Loan
 
-Autor.hasMany(Libro, { foreignKey: "autor_id", as: "libros" });
-Libro.belongsTo(Autor, { foreignKey: "autor_id", as: "autor" });
+// onDelete: "RESTRICT" → la base NO deja borrar un autor que tiene libros,
+// ni un libro que tiene préstamos. Si lo intentás, Sequelize tira un error.
 
-Libro.hasMany(Prestamo, { foreignKey: "libro_id", as: "prestamos" });
-Prestamo.belongsTo(Libro, { foreignKey: "libro_id", as: "libro" });
+Author.hasMany(Book, { foreignKey: "author_id", as: "books", onDelete: "RESTRICT" });
+Book.belongsTo(Author, { foreignKey: "author_id", as: "author", onDelete: "RESTRICT" });
 
-export { Autor, Libro, Prestamo };
+Book.hasMany(Loan, { foreignKey: "book_id", as: "loans", onDelete: "RESTRICT" });
+Loan.belongsTo(Book, { foreignKey: "book_id", as: "book", onDelete: "RESTRICT" });
+
+export { Author, Book, Loan };
