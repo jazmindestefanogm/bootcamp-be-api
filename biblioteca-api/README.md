@@ -1,17 +1,24 @@
 # API Biblioteca · Starter
 
-Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos y los modelos ya hechos. Vos vas a escribir el contrato, los repositorios, los controladores y las rutas.
+Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos y los modelos ya hechos. Vos vas a escribir el contrato, las rutas, los controladores, los services y los repositorios.
 
 ## Requisitos
 
 - Node.js 18 o superior
+- PostgreSQL y pgAdmin instalados
 - Un cliente HTTP: Thunder Client, REST Client, Postman o Insomnia
+
+## Preparar la base de datos
+
+1. Abrí **pgAdmin** y conectate a tu servidor de Postgres.
+2. Clic derecho en **Databases** → **Create** → **Database...** → en **Database** escribí `biblioteca` → **Save**. La base queda vacía: las tablas las crea `npm run seed`.
+3. Abrí `src/db/connection.ts` y poné tu usuario y contraseña de Postgres (los que elegiste al instalarlo). Si no cambiaste nada, el usuario es `postgres`.
 
 ## Instalar y correr
 
 ```bash
 npm install
-npm run seed     # crea biblioteca.sqlite y carga datos de ejemplo
+npm run seed     # crea las tablas en la base `biblioteca` y carga datos de ejemplo
 npm run dev      # levanta el servidor en http://localhost:3000
 ```
 
@@ -21,6 +28,14 @@ En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `d
 
 `npm run seed` se puede correr las veces que quieras: borra todo y vuelve a cargar los datos de ejemplo.
 
+Si `npm run seed` o `npm run dev` fallan con un error de conexión:
+
+| Mensaje | Qué revisar |
+|---|---|
+| `password authentication failed` | El usuario o la contraseña de `src/db/connection.ts`. |
+| `database "biblioteca" does not exist` | Que creaste la base en pgAdmin con ese nombre exacto, en minúscula. |
+| `ECONNREFUSED` | Que Postgres esté prendido y que el puerto sea `5432`. |
+
 ## Qué hay adentro
 
 ```
@@ -28,7 +43,7 @@ src/
 ├── server.ts            ← arranca Express. Acá montás tus routers.
 ├── docs.ts              ← YA HECHO. Sirve docs/openapi.yaml en /docs con Swagger UI.
 ├── db/
-│   ├── connection.ts    ← conexión a SQLite (archivo biblioteca.sqlite)
+│   ├── connection.ts    ← conexión a PostgreSQL. Acá va tu usuario y contraseña.
 │   └── seed.ts          ← crea las tablas y carga datos de ejemplo
 ├── models/              ← YA HECHO. Modelos de Sequelize = tablas de la DB.
 │   ├── Autor.ts
@@ -37,7 +52,8 @@ src/
 │   └── index.ts         ← relaciones. Importá los modelos siempre desde acá.
 ├── types/               ← VOS. Interfaces del dominio y tipos derivados.
 ├── repositories/        ← VOS. Acceso a datos. El único lugar que usa Sequelize.
-├── controllers/         ← VOS. HTTP: lee req, valida, llama al repositorio, responde.
+├── controllers/         ← VOS. HTTP: lee req, valida, llama al service, responde.
+├── services/            ← VOS. Reglas del negocio. Llama a los repositorios.
 └── routes/              ← VOS. Mapa verbo + ruta → controlador.
 
 docs/
@@ -61,7 +77,7 @@ El diagrama entidad-relación completo, con cardinalidades y claves, está en `d
 
 Datos de ejemplo: 5 autores (el último sin libros), 6 libros (2 prestados), 3 préstamos (2 activos).
 
-Para mirar la base directamente podés abrir `biblioteca.sqlite` con la extensión **SQLite Viewer** de VS Code, o con **DB Browser for SQLite**.
+Para mirar la base directamente, en pgAdmin andá a **biblioteca** → **Schemas** → **public** → **Tables**, clic derecho en una tabla → **View/Edit Data** → **All Rows**.
 
 ## Sequelize en cinco líneas
 
@@ -72,7 +88,7 @@ import { Op } from "sequelize";
 import { Libro, Autor } from "../models/index.js";
 
 await Libro.findAll();                                  // SELECT * FROM libros
-await Libro.findAll({ where: { disponible: true } });   // ... WHERE disponible = 1
+await Libro.findAll({ where: { disponible: true } });   // ... WHERE disponible = true
 await Libro.findByPk(3);                                // ... WHERE id = 3   → Libro | null
 await Libro.findAll({ include: { model: Autor, as: "autor" } }); // JOIN con autores
 await Libro.create({ titulo: "...", anio: 1963, autor_id: 7 });  // INSERT
@@ -84,9 +100,9 @@ await Libro.count({ where: { autor_id: 2 } });          // SELECT COUNT(*) ...
 Para la búsqueda con paginación:
 
 ```ts
-// Búsqueda parcial: LIKE '%ray%'. En SQLite, LIKE no distingue mayúsculas.
+// Búsqueda parcial: ILIKE '%ray%'. En Postgres, LIKE distingue mayúsculas e ILIKE no.
 const where: Record<string, unknown> = {};
-if (filtros.titulo) where.titulo = { [Op.like]: `%${filtros.titulo}%` };
+if (filtros.titulo) where.titulo = { [Op.iLike]: `%${filtros.titulo}%` };
 if (filtros.disponible !== undefined) where.disponible = filtros.disponible;
 
 // Devuelve las filas de la página Y el total de filas que cumplen el where.
@@ -133,11 +149,12 @@ Un `requestBody` se escribe igual que un `content` de respuesta. Tipos: `integer
 ## Arquitectura esperada
 
 ```
-Cliente → routes → controllers → repositories → models (Sequelize) → SQLite
+Cliente → routes → controllers → services → repositories → models (Sequelize) → PostgreSQL
 ```
 
 Reglas:
 
-- Los **controladores** no importan nada de `models/` ni de Sequelize.
+- Los **controladores** no importan nada de `models/` ni de Sequelize. Solo llaman a los services.
+- Los **services** no conocen `req` ni `res` ni eligen status codes. Aplican las reglas del negocio y llaman a los repositorios.
 - Los **repositorios** no conocen `req` ni `res`. Reciben y devuelven tipos de `types/`.
 - Las **rutas** solo mapean. Sin lógica.

@@ -1,6 +1,6 @@
 // Crea las tablas desde cero y carga datos de ejemplo.
 // Correr con: npm run seed
-// ⚠️ Borra todo lo que hubiera en biblioteca.sqlite.
+// ⚠️ Borra todo lo que hubiera en las tablas autores, libros y prestamos de la base `biblioteca`.
 
 import { sequelize } from "./connection.js";
 import { Autor, Libro, Prestamo } from "../models/index.js";

@@ -21,7 +21,7 @@ app.use("/docs", docsRouter);
 // app.use("/prestamos", prestamosRoutes);
 
 async function iniciar() {
-  await sequelize.authenticate(); // falla si no existe biblioteca.sqlite → corré `npm run seed`
+  await sequelize.authenticate(); // falla si Postgres no está prendido, si la base `biblioteca` no existe o si la contraseña de src/db/connection.ts está mal
   app.listen(PORT, () => {
     console.log(`Servidor escuchando en http://localhost:${PORT}`);
     console.log(`Documentación en      http://localhost:${PORT}/docs`);
