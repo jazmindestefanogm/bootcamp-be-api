@@ -97,13 +97,32 @@ Esta es la lista completa de lo que vas a construir. Todos los pasos se refieren
 
 📖 4.3
 
-**Primero, la base de datos.** Necesitás tener Postgres y pgAdmin instalados.
+**Primero, tu copia del repositorio.** Cada uno trabaja en su propia copia, así podés guardar y subir tus cambios sin pisar los de nadie. Necesitás una cuenta de GitHub y tener Git instalado.
+
+1. Entrá a https://github.com/jazmindestefanogm/library-api y apretá el botón **Fork** (arriba a la derecha) → **Create fork**. Ahora tenés una copia en tu cuenta: `github.com/TU-USUARIO/library-api`.
+2. En tu fork, apretá el botón verde **Code** y copiá la URL.
+3. En una terminal, clonalo en tu compu y entrá a la carpeta:
+
+   ```bash
+   git clone URL-QUE-COPIASTE
+   cd library-api
+   ```
+
+Trabajá siempre en tu fork, nunca en el repositorio de la clase. Cada vez que termines un paso, guardá y subí tus cambios:
+
+```bash
+git add .
+git commit -m "paso 1: contrato"
+git push
+```
+
+**Después, la base de datos.** Necesitás tener Postgres y pgAdmin instalados.
 
 1. Abrí **pgAdmin** y conectate a tu servidor.
 2. Clic derecho en **Databases** → **Create** → **Database...** → en **Database** escribí `library` (todo en minúscula) → **Save**. La base queda vacía; las tablas se crean solas en el punto siguiente.
-3. Abrí `library-api/src/db/connection.ts` y cambiá `USER` y `PASSWORD` por los que elegiste al instalar Postgres.
+3. Abrí `src/db/connection.ts` y cambiá `USER` y `PASSWORD` por los que elegiste al instalar Postgres.
 
-**Después, el proyecto.** En una terminal, dentro de la carpeta `library-api`:
+**Por último, el proyecto.** En la terminal, dentro de la carpeta `library-api`, corré:
 
 ```bash
 npm install      # instala las dependencias (solo la primera vez)
@@ -462,3 +481,4 @@ Por último, corré `npm run seed` otra vez y repetí la tabla del paso 4: tiene
 - [ ] La revisión de capas del paso 5 da todo bien.
 - [ ] Las tablas de prueba de los pasos 4 y 5 dan todo lo esperado.
 - [ ] `npm run build` termina sin errores.
+- [ ] Todo está subido a tu fork (`git push`). Para entregar, mandá el link de tu fork.
