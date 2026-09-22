@@ -59,7 +59,7 @@ nacionalidad         anio                       socio_nombre
 
 El diagrama entidad-relación completo, con cardinalidades y claves, está en `docs/DER.md`.
 
-Datos de ejemplo: 4 autores, 6 libros (2 prestados), 3 préstamos (2 activos).
+Datos de ejemplo: 5 autores (el último sin libros), 6 libros (2 prestados), 3 préstamos (2 activos).
 
 Para mirar la base directamente podés abrir `biblioteca.sqlite` con la extensión **SQLite Viewer** de VS Code, o con **DB Browser for SQLite**.
 

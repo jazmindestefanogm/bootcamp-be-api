@@ -15,67 +15,74 @@ Cliente → routes → controllers → repositories → models (Sequelize) → S
 
 **La regla de toda la clase:** cada endpoint se hace en tres pasos, siempre en este orden.
 
-1. **Contrato.** Lo escribís en `docs/openapi.yaml` antes de tocar código, y lo mirás renderizado en `http://localhost:3000/docs` (Swagger UI).
+1. **Contrato.** Lo escribís en `docs/openapi.yaml` antes de tocar código, y lo mirás en `http://localhost:3000/docs` (Swagger UI).
 2. **Código.** Tipos → repositorio → controlador → ruta.
-3. **Prueba.** Desde el botón **Try it out** de Swagger, verificás que la respuesta real es exactamente la que dice el contrato. Si no coincide, algo está mal: o el código o el contrato.
+3. **Prueba.** Desde el botón **Try it out** de Swagger, probás cada caso del contrato. La respuesta real tiene que ser igual a la documentada.
 
-**Lo que no vamos a hacer hoy:** middlewares propios, logs, tests, autenticación ni capa de servicios. Solo arquitectura y documentación.
+**Lo que no vamos a hacer hoy:** middlewares propios, logs, tests, autenticación ni capa de servicios.
 
-**Lo que sí vas a tener al final:** los siete tipos de endpoint que existen en casi cualquier API.
+**Decisiones ya tomadas**, para que todos hagamos lo mismo:
 
-| Tipo | Lo aprendés en |
-|---|---|
-| GET lista | `GET /autores` |
-| GET por id | `GET /autores/{id}` |
-| GET con búsqueda, filtros y paginación | `GET /libros?titulo=&disponible=&autor_id=&pagina=&limite=` |
-| POST | `POST /libros` |
-| PATCH | `PATCH /libros/{id}` |
-| PUT | `PUT /libros/{id}` |
-| DELETE | `DELETE /libros/{id}` y `DELETE /autores/{id}` |
+- Los errores siempre tienen la forma `{ "error": "mensaje" }`.
+- Un id que no es número entero (`/libros/abc`) devuelve **400**.
+- Un id que no existe devuelve **404**.
+- Un query param con valor inválido (`?disponible=banana`, `?pagina=0`, `?limite=abc`) devuelve **400**.
+- `?limite=500` no es error: se corrige al máximo (50).
+- Los libros se devuelven con `autor_id`, sin el autor adentro.
+- Referenciar algo que no existe en un body (`autor_id: 999`) devuelve **404**.
 
 ---
 
-## Ejercicio 1 · Levantar el proyecto y conocer la base
+## Ejercicio 1 · Levantar el proyecto
 
-📖 Teoría: 0.1 Cliente y servidor · 4.3 El servidor mínimo · 1.9 Del DER a los recursos · 5.8 ORM: hablar con la base sin escribir SQL
+📖 Teoría: 4.3 El servidor mínimo · 5.8 ORM: hablar con la base sin escribir SQL
 
-**a)** Cloná el repositorio `biblioteca-api` y seguí el README: `npm install`, `npm run seed`, `npm run dev`. Entrá a `http://localhost:3000` y confirmá que responde. Después entrá a `http://localhost:3000/docs`: es Swagger UI mostrando `docs/openapi.yaml`, que por ahora está vacío. Ahí va a ir apareciendo tu contrato a medida que lo escribas.
+**a)** Cloná `biblioteca-api` y corré:
 
-**b)** Abrí `docs/DER.md`. Con el diagrama a la vista, respondé:
-- ¿Cuántas tablas hay y cómo se relacionan?
-- ¿Qué columna de `libros` es clave foránea y a qué apunta?
-- ¿Qué significa que `fecha_devolucion` acepte `NULL`?
+```bash
+npm install
+npm run seed
+npm run dev
+```
 
-**c)** Abrí `biblioteca.sqlite` con un visor (SQLite Viewer en VS Code, o DB Browser for SQLite). Anotá cuántos libros tienen `disponible = false` y qué préstamos tienen `fecha_devolucion` en `NULL`. ¿Coinciden?
+**b)** Entrá a `http://localhost:3000`. Tiene que responder `{ "mensaje": "API Biblioteca funcionando", ... }`.
 
-**d)** Leé `src/models/Libro.ts` y `src/models/index.ts`. ¿Qué nombre tiene la relación cuando pedís el autor desde un libro (`as: ...`)?
+**c)** Entrá a `http://localhost:3000/docs`. Tiene que mostrar Swagger UI con el título "API Biblioteca" y el aviso "No operations defined in spec!". Ahí va a aparecer tu contrato.
 
-**e)** Leé la sección "Sequelize en cinco líneas" del README. Esas funciones son todo lo que vas a necesitar hoy.
+**d)** Abrí `docs/DER.md` y dejalo a mano. Después abrí `src/models/index.ts` y anotá el nombre del alias de cada relación (`as: "..."`). Los vas a necesitar.
+
+**e)** Leé la sección "Sequelize en cinco líneas" del README.
 
 ---
 
 ## Ejercicio 2 · Diseñar las rutas
 
-📖 Teoría: 0.2 Anatomía de un pedido HTTP · 1.3 Paso 2: aplicar el estilo REST · 1.4 Paso 3: relaciones entre recursos · 1.5 Paso 4: filtros, orden y paginación con query params · 1.6 Paso 5: acciones que no son CRUD · 1.7 Convenciones de nombres · 1.9 Del DER a los recursos · 1.10 Path params, query params y body: dónde viaja cada dato
+📖 Teoría: 1.3 Paso 2: aplicar el estilo REST · 1.5 Paso 4: filtros, orden y paginación con query params · 1.6 Paso 5: acciones que no son CRUD · 1.7 Convenciones de nombres · 1.10 Path params, query params y body: dónde viaja cada dato
 
-Todavía sin código ni contrato. Solo papel, o un archivo `docs/RUTAS.md`. Acá se decide la forma de toda la API; lo que quede mal diseñado ahora se arrastra hasta el final.
+Creá `docs/RUTAS.md`. Todavía sin código ni contrato.
 
-**a)** A partir del DER, listá los **recursos** de la API y la URL base de cada uno.
+**a)** Escribí los tres recursos de la API y la URL base de cada uno.
 
-**b)** Armá la tabla completa de endpoints para todo esto. Una fila por endpoint, con las columnas `Verbo | Ruta | Qué hace | Status de éxito | Errores posibles`:
+**b)** Armá una tabla con **una fila por endpoint** y estas columnas: `Verbo | Ruta | Qué hace | Status de éxito | Errores posibles`. Tiene que cubrir exactamente estas operaciones, ni más ni menos:
 
-- Listar y ver un autor.
-- Borrar un autor.
-- Ver un libro.
-- Buscar libros por parte del título, filtrar por disponibilidad y por autor, y pedir los resultados de a páginas.
-- Crear, modificar parcialmente, reemplazar y borrar un libro.
-- Listar préstamos, solo los activos si se pide.
-- Registrar un préstamo.
-- Registrar la devolución de un préstamo.
+1. Listar autores.
+2. Ver un autor.
+3. Borrar un autor.
+4. Ver un libro.
+5. Buscar libros por parte del título, filtrar por disponibilidad y por autor, y pedir los resultados de a páginas. Es **un solo** endpoint.
+6. Crear un libro.
+7. Modificar algunos campos de un libro.
+8. Reemplazar un libro completo.
+9. Borrar un libro.
+10. Listar préstamos, con la opción de ver solo los activos.
+11. Registrar un préstamo.
+12. Registrar la devolución de un préstamo.
 
-**c)** Para cada dato que la API recibe, decidí **dónde viaja** y justificalo en una palabra:
+Reglas para armarla: sustantivos en plural y minúscula, sin verbos en la URL, ids en la ruta, filtros en el query string, cada acción con el verbo HTTP que le corresponde.
 
-| Dato | ¿Path param, query param o body? | Por qué |
+**c)** Completá esta tabla. En la segunda columna escribí `path`, `query` o `body`. En la tercera, una sola palabra: `identifica`, `filtra` o `guarda`.
+
+| Dato | ¿Dónde viaja? | Por qué |
 |---|---|---|
 | El id del libro que quiero ver | | |
 | El texto a buscar en el título | | |
@@ -86,7 +93,7 @@ Todavía sin código ni contrato. Solo papel, o un archivo `docs/RUTAS.md`. Acá
 | La fecha en que devolvieron un préstamo | | |
 | El id del préstamo que quiero cerrar | | |
 
-**d)** Estas rutas están mal diseñadas. Decí qué regla rompe cada una y escribí la versión correcta:
+**d)** Estas diez rutas están mal. Escribí al lado de cada una la versión correcta:
 
 - `GET /obtenerLibros`
 - `GET /libros/buscar?titulo=ray`
@@ -99,197 +106,285 @@ Todavía sin código ni contrato. Solo papel, o un archivo `docs/RUTAS.md`. Acá
 - `DELETE /libros?id=5`
 - `POST /libros/5` (para modificar el título)
 
-**e)** Comparalo con un compañero. Donde no coincidan, discutan cuál es la correcta y por qué. Si las dos son válidas, es una decisión de diseño: anoten cuál eligen.
-
-Esta tabla es el mapa de todo lo que sigue. Los ejercicios 3 a 12 van llenando el contrato y el código de cada fila.
-
-**Preguntas rápidas**
-- `GET /libros/5` y `GET /libros?id=5` devuelven lo mismo. ¿Por qué la primera es correcta y la segunda no?
-- `GET /autores/2/libros` y `GET /libros?autor_id=2` también devuelven lo mismo. ¿Acá cuál es la correcta? ¿Cambia la respuesta respecto de la pregunta anterior?
-- Un query param nunca es obligatorio. ¿Por qué? ¿Qué pasa con un path param?
-- ¿Por qué el body no viaja en un `GET`?
+Esta tabla es el mapa de todo lo que sigue. Cada ejercicio de acá en adelante toma filas de ella.
 
 ---
 
 ## Ejercicio 3 · Contrato de autores
 
-📖 Teoría: 1.2 Paso 1: identificar recursos · 1.3 Paso 2: aplicar el estilo REST · 2.2 Qué tiene que definir el contrato de un endpoint · 2.3 OpenAPI / Swagger: el estándar · 2.6 Anatomía de un documento OpenAPI · 2.7 Schemas: la forma de los datos
+📖 Teoría: 2.6 Anatomía de un documento OpenAPI · 2.7 Schemas: la forma de los datos
 
-En `docs/openapi.yaml`, usando la plantilla comentada que ya está ahí, escribí el contrato de:
+En `docs/openapi.yaml`:
 
-- `GET /autores`
-- `GET /autores/{id}`
+**a)** En `components.schemas`, agregá el schema `Autor` con `id`, `nombre` y `nacionalidad`. Los tres en `required`. Cada propiedad con un `example` sacado del seed.
 
-**a)** Primero el schema `Autor` en `components.schemas`, con un `example` real sacado del seed.
+**b)** En `paths`, agregá `GET /autores` con `tags: [Autores]`. Responde **200** con un array de `Autor`. Todos los endpoints de acá en adelante llevan el tag de su recurso.
 
-**b)** Después los dos `paths`. Para cada uno: parámetros, respuesta exitosa apuntando al schema con `$ref`, y todos los errores posibles con su status y el schema `Error`.
+**c)** Agregá `GET /autores/{id}`. Parámetro `id` en path, entero, obligatorio. Respuestas: **200** con `Autor`, **400** si el id no es entero, **404** si no existe. Los dos errores con schema `Error` y un `example` de mensaje.
 
-**c)** Guardá, recargá `/docs` y revisá que Swagger lo muestre sin errores. Si hay un error de sintaxis YAML, la página lo dice arriba.
-
-**Preguntas rápidas**
-- ¿Qué pasa si `GET /autores` no encuentra ningún autor? ¿Es un error?
-- ¿Qué devolvés si piden `GET /autores/abc`? ¿Es 400 o 404? Elegí y dejalo escrito en el contrato.
+**d)** Guardá, recargá `/docs`. Tienen que aparecer los dos endpoints bajo el tag `Autores` y el schema `Autor` abajo. Si Swagger muestra un error de YAML arriba de la página, arreglalo antes de seguir.
 
 ---
 
-## Ejercicio 4 · Primer flujo completo: autores
+## Ejercicio 4 · Implementar autores
 
-📖 Teoría: 3.4 Interfaces: la forma de un objeto · 3.10 `async` y `Promise<T>` · 5.3 Cómo fluye un pedido en MVC · 5.5 El código, capa por capa · 5.9 La capa de repositorios · 4.5 Leer datos del pedido · 4.6 Responder · 4.11 Routers
+📖 Teoría: 3.4 Interfaces: la forma de un objeto · 3.10 `async` y `Promise<T>` · 5.5 El código, capa por capa · 5.9 La capa de repositorios · 4.5 Leer datos del pedido · 4.6 Responder · 4.11 Routers
 
 Implementá los dos endpoints del ejercicio 3, en este orden:
 
-**a)** `src/types/autor.ts`: la `interface Autor`. Tiene que coincidir con la tabla del DER y con el schema del contrato.
+**a)** Creá `src/types/autor.ts` con `export interface Autor` con los mismos tres campos del schema.
 
-**b)** `src/repositories/autores.repository.ts`: dos funciones.
+**b)** Creá `src/repositories/autores.repository.ts` con dos funciones:
+
 - `obtenerTodos(): Promise<Autor[]>`
 - `obtenerPorId(id: number): Promise<Autor | null>`
 
-Es el **único archivo que importa de `models/`**. Convertí las instancias de Sequelize a objetos planos con `toJSON()` antes de devolverlas.
+Importá el modelo desde `../models/index.js`. Devolvé siempre `toJSON()` de las instancias, nunca la instancia. Este es el único archivo de autores que importa de `models/`.
 
-**c)** `src/controllers/autores.controller.ts`: dos funciones que reciben `req` y `res`. Leen params, llaman al repositorio, responden según el contrato. **No importan nada de `models/`.**
+**c)** Creá `src/controllers/autores.controller.ts` con dos funciones `async` que reciben `(req: Request, res: Response)`:
 
-**d)** `src/routes/autores.routes.ts`: un `Router` con las dos rutas. Montalo en `server.ts` con `app.use("/autores", ...)`.
+- `listar`: llama al repositorio y responde `res.json(...)`.
+- `obtenerUno`: convierte `req.params.id` con `Number()`. Si el resultado no es un entero, responde 400. Llama al repositorio. Si devuelve `null`, responde 404. Si no, 200 con el autor. Usá `return` después de cada respuesta de error.
 
-**e)** Probá los dos endpoints y el 404 desde Swagger con **Try it out**. Compará la respuesta real con el ejemplo del contrato, campo por campo.
+Este archivo no importa nada de `models/`.
 
-**Preguntas rápidas**
-- `req.params.id` es un string. ¿En qué capa lo convertís a número? ¿Por qué ahí y no en el repositorio?
-- Si mañana cambian SQLite por PostgreSQL, ¿cuál de tus cuatro archivos cambia?
+**d)** Creá `src/routes/autores.routes.ts` con un `Router()`, registrá `router.get("/", listar)` y `router.get("/:id", obtenerUno)`, y exportalo por default. En `server.ts`, montalo con `app.use("/autores", autoresRoutes)`.
+
+**e)** Probá desde Swagger, con **Try it out**:
+
+| Pedido | Esperado |
+|---|---|
+| `GET /autores` | 200, array de 5 autores |
+| `GET /autores/1` | 200, Julio Cortázar |
+| `GET /autores/999` | 404, `{ "error": "..." }` |
+| `GET /autores/abc` | 400, `{ "error": "..." }` |
+
+Los cuatro tienen que coincidir con lo que dice tu contrato.
 
 ---
 
 ## Ejercicio 5 · Contrato de la búsqueda de libros
 
-📖 Teoría: 1.5 Paso 4: filtros, orden y paginación con query params · 1.7 Convenciones de nombres · 1.8 Forma de las respuestas · 2.7 Schemas: la forma de los datos
+📖 Teoría: 1.5 Paso 4: filtros, orden y paginación con query params · 2.7 Schemas: la forma de los datos
 
-Escribí el contrato de:
+**a)** Agregá el schema `Libro` con `id`, `titulo`, `anio`, `autor_id` y `disponible`. Todos en `required`.
 
-- `GET /libros/{id}`
-- `GET /libros`, con **todos** estos query params, todos opcionales y combinables:
+**b)** Agregá el schema `PaginaDeLibros`:
 
-| Query param | Tipo | Qué hace |
-|---|---|---|
-| `titulo` | string | Búsqueda parcial, sin distinguir mayúsculas. `?titulo=ray` encuentra "Rayuela". |
-| `disponible` | boolean | Filtro exacto. |
-| `autor_id` | integer | Filtro exacto. |
-| `pagina` | integer, default 1 | Qué página devolver. |
-| `limite` | integer, default 10, máximo 50 | Cuántos libros por página. |
-
-Como hay paginación, la respuesta de la lista **no es un array**. Definí un schema `PaginaDeLibros`:
-
-```json
-{ "datos": [ ...libros... ], "total": 6, "pagina": 1, "limite": 10 }
+```yaml
+type: object
+required: [datos, total, pagina, limite]
+properties:
+  datos:  { type: array, items: { $ref: "#/components/schemas/Libro" } }
+  total:  { type: integer, example: 6 }
+  pagina: { type: integer, example: 1 }
+  limite: { type: integer, example: 10 }
 ```
 
-Decidí y documentá: ¿el libro se devuelve con `autor_id` solo, o con el autor completo adentro? Cualquiera es válida, pero tiene que estar escrito.
+**c)** Agregá `GET /libros/{id}`. Igual que el de autores: 200 con `Libro`, 400, 404.
 
-**Preguntas rápidas**
-- ¿Qué devuelve `GET /libros?disponible=banana`? ¿Y `?pagina=0`? ¿Y `?limite=500`? Cada caso tiene que estar en el contrato: o se rechaza con 400, o se corrige en silencio. Elegí y escribilo.
-- ¿Por qué `total` es la cantidad de libros que cumplen el filtro y no la cantidad de libros de la página?
+**d)** Agregá `GET /libros` con estos cinco query params, todos `required: false`:
+
+| Nombre | Schema | Descripción a escribir |
+|---|---|---|
+| `titulo` | `string` | Búsqueda parcial, sin distinguir mayúsculas |
+| `disponible` | `boolean` | Filtro exacto |
+| `autor_id` | `integer` | Filtro exacto |
+| `pagina` | `integer, default: 1, minimum: 1` | Página a devolver |
+| `limite` | `integer, default: 10, minimum: 1, maximum: 50` | Cantidad por página |
+
+Respuestas: **200** con `PaginaDeLibros`, **400** si algún query param tiene un valor inválido.
+
+**e)** Recargá `/docs` y verificá que `GET /libros` muestre los cinco parámetros en el formulario de **Try it out**.
 
 ---
 
 ## Ejercicio 6 · Implementar la búsqueda
 
-📖 Teoría: 3.6 Tipos derivados · 3.9 Genéricos · 4.12 Convertir lo que llega por query string · 5.8 ORM · 5.5 El código, capa por capa
+📖 Teoría: 3.9 Genéricos: tipos con parámetros · 4.12 Convertir lo que llega por query string · 5.8 ORM: hablar con la base sin escribir SQL
 
-**a)** `src/types/libro.ts`: `interface Libro`, `interface FiltrosLibro` con los tres filtros opcionales, `interface Paginacion` con `pagina` y `limite`, e `interface PaginaDe<T>` genérica con `datos: T[]`, `total`, `pagina` y `limite`.
+**a)** Creá `src/types/libro.ts` con:
 
-**b)** Repositorio: `obtenerPorId(id)` y `buscar(filtros: FiltrosLibro, paginacion: Paginacion): Promise<PaginaDe<Libro>>`. Armá el `where` agregando solo los filtros que vienen definidos. Para `titulo` usá `Op.like`. Para la paginación, `findAndCountAll` con `limit` y `offset`.
+```ts
+export interface Libro { ... }                       // los cinco campos
+export interface FiltrosLibro { titulo?: string; disponible?: boolean; autor_id?: number }
+export interface Paginacion { pagina: number; limite: number }
+export interface PaginaDe<T> { datos: T[]; total: number; pagina: number; limite: number }
+```
 
-**c)** Controlador: todo lo que llega por `req.query` es string. Convertí `disponible` a booleano, `autor_id`, `pagina` y `limite` a número, y aplicá los defaults y el máximo que definiste en el contrato **antes** de llamar al repositorio.
+**b)** Creá `src/repositories/libros.repository.ts` con:
 
-**d)** Rutas y montaje. Probá desde Swagger: sin filtros, `?titulo=el`, `?disponible=true&autor_id=2`, `?pagina=2&limite=2`, y los casos raros de la pregunta rápida del ejercicio 5.
+- `obtenerPorId(id: number): Promise<Libro | null>`
+- `buscar(filtros: FiltrosLibro, paginacion: Paginacion): Promise<PaginaDe<Libro>>`
 
-**e)** Si en el contrato decidiste incluir el autor, usá `include` con el alias `"autor"` en el repositorio. Ajustá la interface o el schema para que coincidan con el JSON real.
+En `buscar`: armá un objeto `where` vacío y agregale una clave por cada filtro que venga definido. Para `titulo` usá `{ [Op.like]: \`%${filtros.titulo}%\` }`. Después llamá a `findAndCountAll` con `where`, `limit: paginacion.limite`, `offset: (paginacion.pagina - 1) * paginacion.limite` y `order: [["id", "ASC"]]`. Devolvé `{ datos: rows.map(r => r.toJSON()), total: count, pagina, limite }`.
 
-**Pregunta rápida**
-- La conversión de `"true"` a `true` y de `"2"` a `2`, ¿es responsabilidad del controlador o del repositorio? ¿Qué pasaría si un día el mismo repositorio lo usa un script que no viene de HTTP?
+**c)** Creá `src/controllers/libros.controller.ts` con `obtenerUno` (igual que el de autores) y `buscar`. En `buscar`, convertí cada query param así:
+
+- `titulo`: se usa tal cual si viene.
+- `disponible`: `"true"` → `true`, `"false"` → `false`, cualquier otro valor → 400.
+- `autor_id`, `pagina`, `limite`: `Number()`. Si el resultado no es entero, 400.
+- `pagina`: default 1. Si es menor a 1, 400.
+- `limite`: default 10. Si es menor a 1, 400. Si es mayor a 50, usá 50.
+
+Armá `FiltrosLibro` y `Paginacion` con los valores convertidos y llamá al repositorio.
+
+**d)** Creá `src/routes/libros.routes.ts`, registrá las dos rutas y montalo en `/libros`.
+
+**e)** Probá desde Swagger:
+
+| Pedido | Esperado |
+|---|---|
+| `GET /libros` | 200, `total: 6`, 6 libros en `datos` |
+| `GET /libros?titulo=EL` | 200, `total: 2` (Rayuela y El Aleph) |
+| `GET /libros?disponible=true&autor_id=2` | 200, `total: 1` (Ficciones) |
+| `GET /libros?pagina=2&limite=2` | 200, 2 libros, `total: 6`, `pagina: 2` |
+| `GET /libros?limite=500` | 200, `limite: 50` |
+| `GET /libros?disponible=banana` | 400 |
+| `GET /libros?pagina=0` | 400 |
 
 ---
 
 ## Ejercicio 7 · Contrato de `POST /libros`
 
-📖 Teoría: 2.2 Qué tiene que definir el contrato de un endpoint · 0.4 Status codes que vas a usar siempre
+📖 Teoría: 2.2 Qué tiene que definir el contrato de un endpoint · 2.7 Schemas: la forma de los datos
 
-Este es el contrato más importante del día. Tiene que definir:
+**a)** Agregá el schema `NuevoLibro`:
 
-- Un schema `NuevoLibro` para el `requestBody`: propiedades con tipo, lista `required`, y reglas con `minLength`, `minimum`, `maximum`. `id` y `disponible` **no** van: los pone el servidor.
-- La respuesta **201** con el schema `Libro` completo.
-- **Todos** los errores: falta un campo, un campo tiene el tipo equivocado, `anio` fuera de rango, `autor_id` no existe. Cada uno con su `example` de mensaje.
+- `titulo`: string, `minLength: 1`, `maxLength: 200`
+- `anio`: integer, `minimum: 1000`, `maximum: 2100`
+- `autor_id`: integer
+- `required: [titulo, anio, autor_id]`
 
-Intercambiá el contrato con un compañero. Cada uno busca un caso que el del otro **no cubre** y lo anota. Corregí el tuyo.
+Sin `id` ni `disponible`: los pone el servidor.
 
-Cuando lo veas en Swagger, fijate que el formulario de **Try it out** ya te arma el body de ejemplo a partir de tu schema.
+**b)** Agregá `POST /libros` con `requestBody` obligatorio de tipo `NuevoLibro` y estas respuestas:
+
+| Status | Cuándo | Example del mensaje |
+|---|---|---|
+| 201 | Creado. Body: `Libro` completo, con `disponible: true` | — |
+| 400 | Falta un campo obligatorio | `"El campo titulo es obligatorio"` |
+| 400 | Un campo tiene tipo incorrecto | `"anio debe ser un número entero"` |
+| 400 | `anio` fuera de rango | `"anio debe estar entre 1000 y 2100"` |
+| 404 | `autor_id` no existe | `"Autor no encontrado"` |
+
+**c)** Recargá `/docs`. En **Try it out** de `POST /libros`, el body de ejemplo tiene que aparecer ya armado con los tres campos.
 
 ---
 
 ## Ejercicio 8 · Implementar `POST /libros`
 
-📖 Teoría: 3.6 Tipos derivados · 3.7 `any` y `unknown` · 4.7 Ejemplo completo: GET uno y POST · 4.8 TypeScript y el body
+📖 Teoría: 3.6 Tipos derivados: `Omit`, `Partial`, `Pick` · 3.7 `any` y `unknown` · 4.7 Ejemplo completo: GET uno y POST · 4.8 TypeScript y el body
 
-**a)** En `types/libro.ts` agregá `type NuevoLibro = Omit<Libro, "id" | "disponible">`.
+**a)** En `types/libro.ts` agregá `export type NuevoLibro = Omit<Libro, "id" | "disponible">`.
 
-**b)** Repositorio: `crear(datos: NuevoLibro): Promise<Libro>`.
+**b)** En el repositorio de libros agregá `crear(datos: NuevoLibro): Promise<Libro>`, que llama a `Libro.create(datos)` y devuelve `toJSON()`.
 
-**c)** Controlador: `req.body` es `any`. Validá con `typeof` cada campo **antes** de armar un `NuevoLibro`. Para el error de autor inexistente, usá el repositorio de autores que ya tenés.
+**c)** En el controlador agregá `crear`. En este orden:
 
-**d)** Probá cada error que documentaste desde Swagger, editando el body de ejemplo. Una prueba por error. Después el caso feliz, y verificá el libro nuevo con `GET /libros/{id}`.
+1. Sacá `titulo`, `anio` y `autor_id` de `req.body`.
+2. Validá con `typeof` que `titulo` sea string, `anio` y `autor_id` números enteros. Si falla, 400 con el mensaje del contrato.
+3. Validá el rango de `anio` y el largo de `titulo`. Si falla, 400.
+4. Llamá a `Autores.obtenerPorId(autor_id)`. Si devuelve `null`, 404.
+5. Armá el objeto `NuevoLibro`, llamá a `Libros.crear`, respondé 201 con el resultado.
 
-**Preguntas rápidas**
-- ¿Por qué el body se tipa como `NuevoLibro` y no como `Libro`?
-- ¿El controlador de libros importó el repositorio de autores o el modelo `Autor`? ¿Cuál es la respuesta correcta y por qué?
+El controlador de libros importa el **repositorio** de autores, no el modelo.
+
+**d)** Registrá `router.post("/", crear)`.
+
+**e)** Probá desde Swagger, un pedido por fila del contrato:
+
+| Body | Esperado |
+|---|---|
+| `{ "titulo": "Rayuela 2", "anio": 2000, "autor_id": 1 }` | 201, libro con `id: 7` y `disponible: true` |
+| `{ "anio": 2000, "autor_id": 1 }` | 400 |
+| `{ "titulo": "x", "anio": "2000", "autor_id": 1 }` | 400 |
+| `{ "titulo": "x", "anio": 500, "autor_id": 1 }` | 400 |
+| `{ "titulo": "x", "anio": 2000, "autor_id": 999 }` | 404 |
+
+Después `GET /libros/7` tiene que devolver el libro nuevo.
 
 ---
 
-## Ejercicio 9 · PATCH y PUT: la misma ruta, dos significados
+## Ejercicio 9 · PATCH y PUT
 
-📖 Teoría: 0.3 Los verbos HTTP · 0.5 PUT y PATCH no son lo mismo · 3.6 Tipos derivados · 4.8 TypeScript y el body
+📖 Teoría: 0.5 PUT y PATCH no son lo mismo · 3.6 Tipos derivados · 6.1 Buenas prácticas básicas
 
-Contrato primero, después código, después prueba, para los dos juntos:
+**a)** Contrato. Agregá el schema `EditarLibro`: las mismas tres propiedades de `NuevoLibro` con las mismas reglas, pero **sin** lista `required`. Después agregá:
 
-- `PATCH /libros/{id}`: modifica **algunos** campos. Body con schema `EditarLibro`, donde todo es opcional pero tiene que venir al menos un campo. En código, `type EditarLibro = Partial<NuevoLibro>`.
-- `PUT /libros/{id}`: **reemplaza** el libro. Body con schema `NuevoLibro`, todos los campos obligatorios.
+- `PATCH /libros/{id}`: body `EditarLibro`. 200 con `Libro`, 400 si el body está vacío o algún campo presente tiene tipo o rango incorrecto, 404 si el libro o el `autor_id` no existen.
+- `PUT /libros/{id}`: body `NuevoLibro`. 200 con `Libro`, 400 si falta algún campo o hay tipo o rango incorrecto, 404 si el libro o el `autor_id` no existen.
 
-Los dos devuelven 200 con el libro resultante, 404 si no existe, y 400 si el body está mal. Los dos comparten la validación de tipos con `POST`: si te encontrás copiando y pegando, extraela a una función y usala en los tres lugares.
+**b)** Tipos. Agregá `export type EditarLibro = Partial<NuevoLibro>`.
 
-**La prueba que importa.** Mandá exactamente `{ "titulo": "Otro" }` a los dos endpoints, sobre el mismo libro. Anotá:
-- ¿Qué status devolvió cada uno?
-- ¿Qué quedó en `anio` y `autor_id` después de cada uno?
-- ¿Cuál de los dos usarías desde un formulario que solo edita el título? ¿Y desde uno que edita la ficha completa?
+**c)** Repositorio. Agregá `actualizar(id: number, cambios: EditarLibro): Promise<Libro | null>`: busca con `findByPk`, si no existe devuelve `null`, si existe hace `instancia.update(cambios)` y devuelve `toJSON()`.
+
+**d)** Validación compartida. La validación de tipos y rangos de `titulo`, `anio` y `autor_id` es la misma en POST, PUT y PATCH. Movela a una función `validarCamposLibro(body: unknown, todosObligatorios: boolean)` que devuelve `string | null` (el mensaje de error, o `null` si está todo bien). Usala en los tres controladores. En `crear` reemplazá lo que habías escrito a mano.
+
+**e)** Controladores. Agregá `reemplazar` (PUT) y `modificar` (PATCH). Los dos: validan el id, validan el body con la función del punto anterior (con `true` para PUT, `false` para PATCH), en PATCH verifican que venga al menos un campo, si viene `autor_id` verifican que exista, llaman a `actualizar`, responden 404 si devolvió `null` o 200 con el libro.
+
+**f)** Rutas: `router.put("/:id", reemplazar)` y `router.patch("/:id", modificar)`.
+
+**g)** Probá sobre el libro 1 (Rayuela, 1963, autor 1):
+
+| Pedido | Body | Esperado |
+|---|---|---|
+| `PATCH /libros/1` | `{ "titulo": "Rayuela (ed. 2026)" }` | 200, `anio` sigue en 1963 |
+| `PUT /libros/1` | `{ "titulo": "Rayuela (ed. 2026)" }` | 400 |
+| `PUT /libros/1` | `{ "titulo": "Rayuela", "anio": 1963, "autor_id": 1 }` | 200 |
+| `PATCH /libros/1` | `{}` | 400 |
+| `PATCH /libros/1` | `{ "autor_id": 999 }` | 404 |
+| `PATCH /libros/999` | `{ "titulo": "x" }` | 404 |
 
 ---
 
 ## Ejercicio 10 · Los dos DELETE
 
-📖 Teoría: 0.4 Status codes que vas a usar siempre · 6.1 Buenas prácticas básicas
+📖 Teoría: 0.4 Status codes que vas a usar siempre
 
-**a)** `DELETE /libros/{id}`: 204 sin body, 404 si no existe. Es el endpoint más simple del día.
+**a)** Contrato. Agregá:
 
-**b)** `DELETE /autores/{id}`: igual, pero con una regla: **no se puede borrar un autor que tiene libros**. En ese caso, **409 Conflict** con un mensaje que diga cuántos libros tiene. Al repositorio de libros le vas a tener que agregar una función para contar los libros de un autor.
+- `DELETE /libros/{id}`: **204** sin body, 400, 404.
+- `DELETE /autores/{id}`: **204** sin body, 400, 404, y **409** si el autor tiene libros. Example del 409: `"No se puede borrar: el autor tiene 2 libros"`.
 
-Contrato primero. En el 409, escribí un `example` con el mensaje real.
+**b)** Repositorio de libros: agregá `eliminar(id: number): Promise<boolean>` (busca, si no existe devuelve `false`, si existe hace `destroy()` y devuelve `true`) y `contarPorAutor(autorId: number): Promise<number>` con `Libro.count({ where: { autor_id: autorId } })`.
 
-**Preguntas rápidas**
-- ¿Por qué el 409 se decide en el controlador de autores y no en el repositorio?
-- La alternativa a prohibir el borrado sería borrar el autor **y todos sus libros** en cascada. ¿Qué status y qué contrato tendría eso? ¿Por qué elegimos prohibirlo?
+**c)** Repositorio de autores: agregá `eliminar(id: number): Promise<boolean>`, igual que el de libros.
+
+**d)** Controlador de libros: `eliminar`. Valida el id, llama al repositorio, 404 si devolvió `false`, si no `res.status(204).send()`.
+
+**e)** Controlador de autores: `eliminar`. Valida el id, llama a `Autores.obtenerPorId`, 404 si es `null`. Llama a `Libros.contarPorAutor(id)`. Si es mayor a 0, 409 con el mensaje que incluye la cantidad. Si no, llama a `Autores.eliminar` y responde 204.
+
+**f)** Rutas: `router.delete("/:id", eliminar)` en los dos routers.
+
+**g)** Probá:
+
+| Pedido | Esperado |
+|---|---|
+| `DELETE /libros/7` (el que creaste en el ejercicio 8) | 204 |
+| `GET /libros/7` | 404 |
+| `DELETE /autores/1` (Cortázar, tiene 2 libros) | 409 |
+| `DELETE /autores/999` | 404 |
+| `DELETE /autores/5` (Mariana Enriquez, sin libros) | 204 |
+| `GET /autores/5` | 404 |
 
 ---
 
 ## Ejercicio 11 · Contrato de préstamos
 
-📖 Teoría: 1.6 Paso 5: acciones que no son CRUD · 0.4 Status codes que vas a usar siempre
+📖 Teoría: 1.6 Paso 5: acciones que no son CRUD · 2.7 Schemas: la forma de los datos
 
-Escribí el contrato de:
+**a)** Agregá el schema `Prestamo` con `id`, `libro_id`, `socio_nombre`, `fecha_prestamo` (string, `format: date`) y `fecha_devolucion` (string, `format: date`, `nullable: true`). Todos en `required`.
 
-- `GET /prestamos`, con el filtro opcional `?activos=true` (solo los que tienen `fecha_devolucion` en null).
-- `POST /prestamos` con body `libro_id` y `socio_nombre`. Regla: si el libro no está disponible, **409 Conflict**. Efecto secundario: el libro pasa a `disponible: false`.
-- `PATCH /prestamos/{id}` con body `fecha_devolucion`. Es la devolución. Efecto secundario: el libro vuelve a `disponible: true`. 409 si el préstamo ya estaba devuelto.
+**b)** Agregá el schema `NuevoPrestamo` con `libro_id` (integer) y `socio_nombre` (string, `minLength: 1`, `maxLength: 100`). Los dos en `required`.
 
-Documentá los efectos secundarios en la `description` de cada endpoint. Un cliente que lee el contrato tiene que saber que después de un `POST /prestamos` el libro cambia.
+**c)** Agregá el schema `Devolucion` con `fecha_devolucion` (string, `format: date`) en `required`.
 
-**Pregunta rápida**
-- La teoría muestra dos formas de modelar la devolución: `PATCH /prestamos/{id}` o `POST /prestamos/{id}/devolucion`. Usamos la primera. ¿En qué caso elegirías la segunda?
+**d)** Agregá `GET /prestamos` con el query param `activos` (boolean, opcional). Si es `true`, devuelve solo los que tienen `fecha_devolucion` en `null`. 200 con array de `Prestamo`, 400 si `activos` no es `true` ni `false`.
+
+**e)** Agregá `POST /prestamos` con body `NuevoPrestamo`. En la `description` escribí: "Marca el libro como no disponible." Respuestas: 201 con `Prestamo` (con `fecha_prestamo` igual a la fecha de hoy y `fecha_devolucion: null`), 400 por body inválido, 404 si el libro no existe, **409** si el libro no está disponible.
+
+**f)** Agregá `PATCH /prestamos/{id}` con body `Devolucion`. En la `description` escribí: "Registra la devolución y marca el libro como disponible." Respuestas: 200 con `Prestamo`, 400, 404 si el préstamo no existe, **409** si el préstamo ya tenía `fecha_devolucion`.
 
 ---
 
@@ -297,16 +392,38 @@ Documentá los efectos secundarios en la `description` de cada endpoint. Un clie
 
 📖 Teoría: 5.5 El código, capa por capa · 6.1 Buenas prácticas básicas
 
-**a)** `types/prestamo.ts` con `interface Prestamo` (`fecha_devolucion: string | null`) y `NuevoPrestamo`.
+**a)** Creá `src/types/prestamo.ts` con `Prestamo` (`fecha_devolucion: string | null`), `NuevoPrestamo = Omit<Prestamo, "id" | "fecha_prestamo" | "fecha_devolucion">` y `Devolucion = Pick<Prestamo, "fecha_devolucion">`.
 
-**b)** Repositorio de préstamos: `obtenerTodos(soloActivos)`, `obtenerPorId`, `crear`, `registrarDevolucion`. Al repositorio de libros agregale `cambiarDisponibilidad(id, disponible)`.
+**b)** Creá `src/repositories/prestamos.repository.ts` con:
 
-**c)** Controlador. El `POST` coordina: busca el libro, verifica disponibilidad, crea el préstamo, marca el libro. Usá **early return** para los errores: primero el 404, después el 409, y al final el camino feliz sin indentación.
+- `obtenerTodos(soloActivos: boolean): Promise<Prestamo[]>`. Si `soloActivos`, `where: { fecha_devolucion: null }`.
+- `obtenerPorId(id: number): Promise<Prestamo | null>`
+- `crear(datos: NuevoPrestamo, fechaPrestamo: string): Promise<Prestamo>`
+- `registrarDevolucion(id: number, fecha: string): Promise<Prestamo | null>`
 
-**d)** Probá la secuencia completa desde Swagger: prestar un libro disponible (201), intentar prestarlo de nuevo (409), devolverlo (200), intentar devolverlo otra vez (409), y verificar con `GET /libros/{id}` que volvió a estar disponible.
+**c)** Al repositorio de libros agregale `cambiarDisponibilidad(id: number, disponible: boolean): Promise<void>`.
 
-**Pregunta rápida**
-- El controlador de préstamos ahora llama a dos repositorios y tiene dos reglas de negocio. ¿Qué capa de la teoría se encarga de eso cuando el proyecto crece?
+**d)** Creá `src/controllers/prestamos.controller.ts`:
+
+- `listar`: convierte `activos` como hiciste con `disponible` en libros, llama al repositorio, 200.
+- `crear`, en este orden: valida el body con `typeof`. Llama a `Libros.obtenerPorId(libro_id)`, 404 si es `null`. Si `libro.disponible` es `false`, 409. Llama a `Prestamos.crear` con la fecha de hoy en formato `YYYY-MM-DD`. Llama a `Libros.cambiarDisponibilidad(libro_id, false)`. Responde 201.
+- `devolver`, en este orden: valida el id y el body. Llama a `Prestamos.obtenerPorId`, 404 si es `null`. Si `fecha_devolucion` no es `null`, 409. Llama a `registrarDevolucion`. Llama a `Libros.cambiarDisponibilidad(prestamo.libro_id, true)`. Responde 200.
+
+Cada error con su `return`. Primero los errores, al final el caso feliz.
+
+**e)** Creá `src/routes/prestamos.routes.ts` con las tres rutas y montalo en `/prestamos`.
+
+**f)** Probá esta secuencia, en orden, sobre el libro 3 (Ficciones, disponible):
+
+| # | Pedido | Body | Esperado |
+|---|---|---|---|
+| 1 | `POST /prestamos` | `{ "libro_id": 3, "socio_nombre": "Ana" }` | 201, `fecha_devolucion: null` |
+| 2 | `GET /libros/3` | | `disponible: false` |
+| 3 | `POST /prestamos` | `{ "libro_id": 3, "socio_nombre": "Luis" }` | 409 |
+| 4 | `GET /prestamos?activos=true` | | incluye el préstamo del paso 1 |
+| 5 | `PATCH /prestamos/{id del paso 1}` | `{ "fecha_devolucion": "2026-09-22" }` | 200 |
+| 6 | `GET /libros/3` | | `disponible: true` |
+| 7 | `PATCH /prestamos/{id del paso 1}` | `{ "fecha_devolucion": "2026-09-23" }` | 409 |
 
 ---
 
@@ -314,25 +431,22 @@ Documentá los efectos secundarios en la `description` de cada endpoint. Un clie
 
 El repositorio con:
 
-1. `docs/openapi.yaml` completo: los once endpoints, todos sus errores, y `/docs` cargando sin errores.
-2. Código con la estructura `types / repositories / controllers / routes`, un archivo por recurso en cada carpeta.
-3. `npm run build` sin errores, con `strict: true` y cero `any` fuera de la línea donde leés `req.body`.
+1. `docs/RUTAS.md` con la tabla del ejercicio 2.
+2. `docs/openapi.yaml` con los doce endpoints y todos sus errores. `/docs` carga sin errores.
+3. Código con la estructura `types / repositories / controllers / routes`, un archivo por recurso en cada carpeta.
+4. `npm run build` sin errores.
 
-**Rúbrica de autoevaluación**
+**Checklist de autoevaluación**
 
 | Criterio | ✅ |
 |---|---|
-| Cada endpoint tiene su contrato escrito antes que su código | |
-| Las URLs siguen REST: sustantivos, plural, sin verbos, filtros por query param | |
-| Cada respuesta coincide con el contrato: mismo status, mismos campos, mismos tipos | |
+| Los doce endpoints están en el contrato y en el código | |
+| Cada respuesta real coincide con el contrato: mismo status, mismos campos | |
 | Todos los errores tienen la forma `{ "error": "..." }` | |
-| El contrato cubre los errores de tipo, de campo faltante, de recurso inexistente y de conflicto | |
-| La búsqueda combina filtros y pagina, y `total` es el total filtrado | |
-| PATCH acepta parciales y PUT exige el objeto completo | |
+| Todas las tablas de prueba de los ejercicios 4, 6, 8, 9, 10 y 12 dan el resultado esperado | |
 | Solo los repositorios importan de `models/` | |
-| Los repositorios no conocen `req` ni `res` | |
-| Las rutas no tienen lógica | |
-| Las interfaces de `types/` coinciden con el DER y con los schemas de OpenAPI | |
-| La validación de body está en una función, no copiada en POST, PUT y PATCH | |
-| Cada endpoint se puede probar desde Swagger y la respuesta real coincide con el ejemplo documentado | |
-| Compila con `strict: true` | |
+| Los repositorios no reciben `req` ni `res` y devuelven `toJSON()`, nunca instancias | |
+| Las rutas solo tienen `router.<verbo>(ruta, controlador)` | |
+| La validación de campos de libro está en una sola función | |
+| No hay `any` escrito a mano | |
+| `npm run build` compila sin errores | |

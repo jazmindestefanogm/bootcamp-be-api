@@ -13,6 +13,8 @@ async function seed() {
     { nombre: "Jorge Luis Borges", nacionalidad: "Argentina" },
     { nombre: "Silvina Ocampo", nacionalidad: "Argentina" },
     { nombre: "Roberto Bolaño", nacionalidad: "Chile" },
+    // sin libros a propósito: sirve para probar el DELETE exitoso de un autor
+    { nombre: "Mariana Enriquez", nacionalidad: "Argentina" },
   ]);
 
   const libros = await Libro.bulkCreate([
