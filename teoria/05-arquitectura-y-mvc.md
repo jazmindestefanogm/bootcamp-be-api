@@ -11,6 +11,7 @@
 - 5.7 Cómo dibujar un diagrama de arquitectura
 - 5.8 ORM: hablar con la base sin escribir SQL
 - 5.9 La capa de repositorios
+- 5.10 DTOs: lo que entra y sale de la API
 
 ---
 
@@ -314,3 +315,108 @@ Nada de eso menciona Sequelize, `findByPk`, `where` ni `toJSON`. Son detalles de
 3. No decide status codes. Devuelve `null` o `false` o un número; el controlador decide qué significa.
 4. No valida el body. Eso ya lo hizo el controlador en la frontera.
 5. Una función por operación, con nombre de verbo: `obtener`, `buscar`, `crear`, `actualizar`, `eliminar`, `contar`.
+
+## 5.10 · DTOs: lo que entra y sale de la API
+
+Un **DTO** (*Data Transfer Object*, "objeto para transferir datos") es un objeto que tiene **solo los datos que viajan** entre el cliente y la API. No tiene lógica, no tiene métodos: es la forma exacta del JSON que entra o que sale.
+
+Hay que distinguir dos cosas que se parecen mucho:
+
+| | Entidad | DTO |
+|---|---|---|
+| Qué es | Una fila de la base, tal como está guardada. | Lo que la API recibe o devuelve. |
+| Dónde se define | En `models/` (Sequelize) | En `types/` |
+| La decide | El diseño de la base de datos | El contrato (`openapi.yaml`) |
+| Quién la ve | Solo el repositorio | El cliente |
+
+Muchas veces las dos tienen los mismos campos. Pero **son dos cosas distintas**, y cuando no coinciden, lo que se manda al cliente es el DTO.
+
+### Un ejemplo: usuarios de la tienda
+
+La tabla `usuarios` guarda esto:
+
+```ts
+// models/Usuario.ts → la ENTIDAD (cómo está en la base)
+id             INTEGER
+email          VARCHAR
+password_hash  VARCHAR     ← la contraseña encriptada
+rol            VARCHAR     ← "cliente" o "admin"
+intentos_login INTEGER     ← dato interno para bloquear la cuenta
+creado_en      TIMESTAMP
+```
+
+Pero el contrato dice que `GET /usuarios/{id}` devuelve solo esto:
+
+```ts
+// types/usuario.ts → los DTOs (lo que viaja)
+export interface UsuarioRespuesta {   // DTO de salida
+  id: number;
+  email: string;
+}
+
+export interface NuevoUsuario {       // DTO de entrada (body del POST)
+  email: string;
+  password: string;
+}
+```
+
+Y en algún lugar se **convierte** una cosa en la otra, con una función que elige campo por campo:
+
+```ts
+function aUsuarioRespuesta(usuario: UsuarioEntidad): UsuarioRespuesta {
+  return {
+    id: usuario.id,
+    email: usuario.email,
+  };
+}
+```
+
+A esta función se la suele llamar **mapper** ("traductor"). Fijate que no copia todo con `...usuario`: nombra uno por uno los campos que salen. Así, si mañana alguien agrega una columna a la tabla, **no se filtra sola** a la respuesta.
+
+### Por qué no se devuelve la entidad directamente
+
+Sería más corto hacer `res.json(await Usuario.findByPk(id))`. Estos son los problemas:
+
+**1. Se escapan datos que no deberían salir.** El cliente recibiría `password_hash`, `rol` e `intentos_login`. Aunque la contraseña esté encriptada, mandarla es darle a un atacante algo con qué trabajar. Y cualquier columna nueva que se agregue a la tabla (un DNI, una dirección, una nota interna) empieza a salir en la API **sin que nadie lo decida**.
+
+**2. La base y la API quedan pegadas.** Si renombrás la columna `email` a `correo` en la base, la respuesta cambia y se rompen todas las apps que usan la API. Con un DTO, cambiás una línea en el mapper (`email: usuario.correo`) y el cliente no se entera. La base se puede reorganizar; el contrato se mantiene.
+
+**3. Una instancia del ORM no es un objeto común.** Lo que devuelve Sequelize trae métodos, metadatos y una referencia a la conexión (ver 5.8). Al convertirla en JSON pueden aparecer campos que no esperabas, o relaciones enteras que se cargaron con `include`.
+
+**4. En la entrada, el cliente puede tocar lo que no debe.** Es el mismo problema, pero al revés. Si hacés `Usuario.create(req.body)`, un cliente puede mandar:
+
+```json
+{ "email": "yo@mail.com", "password": "1234", "rol": "admin" }
+```
+
+y se crea como administrador. Con un DTO de entrada, solo se leen los campos permitidos:
+
+```ts
+const datos: NuevoUsuario = { email: req.body.email, password: req.body.password };
+// `rol` no está en NuevoUsuario → se ignora. El servicio le pone "cliente".
+```
+
+Este ataque tiene nombre: **asignación masiva** (*mass assignment*).
+
+### Cuándo se usa
+
+**Siempre que un dato cruza la frontera de la API**, es decir, en todo lo que entra por `req.body` y en todo lo que sale por `res.json`. En la práctica:
+
+- **Un DTO de entrada por cada body distinto:** `NuevoProducto` (POST), `EditarProducto` (PATCH).
+- **Un DTO de salida por cada forma de respuesta:** `Producto`, `PaginaDeProductos`, `UsuarioRespuesta`.
+
+**¿Y si la entidad y el DTO tienen exactamente los mismos campos?** Pasa seguido en APIs chicas: la tabla `categorias` tiene `id` y `nombre`, y la respuesta también. En ese caso alcanza con **un solo tipo** en `types/` (`Categoria`) y con que el repositorio devuelva `toJSON()`. Ese tipo ya funciona como DTO: es un objeto plano que cumple el contrato, no una instancia del ORM. Lo que importa es la regla: **lo que sale de la API lo decide el contrato, no la tabla**. El día que la tabla tenga un campo que no debe salir, se agrega el mapper.
+
+### Dónde va cada cosa
+
+```
+Cliente ──JSON──▶ controller ──DTO entrada──▶ service ──▶ repository ──▶ entidad (models/)
+Cliente ◀──JSON── controller ◀──DTO salida─── service ◀── repository ◀── entidad (models/)
+```
+
+- Los **DTOs** se definen en `types/`, igual que en el contrato.
+- El **controller** arma el DTO de entrada con los campos permitidos del `req.body`, después de validarlos.
+- La **entidad** nunca sale del repositorio (regla de 5.9). El repositorio devuelve objetos planos.
+- El **mapper** a DTO de salida va en el repositorio (si es simple, como `toJSON()`) o en el service (si hay que sacar campos o combinar datos). Nunca en la ruta.
+
+**Cómo saber si te falta un DTO:** mirá el JSON que devuelve un endpoint y compará con el schema del contrato. Si hay algún campo de más, estás devolviendo la entidad.

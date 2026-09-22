@@ -224,9 +224,9 @@ En el `description` del endpoint 11 escribí: *"Al prestar un libro, el libro pa
 
 ## Paso 2 · Los tipos (`src/types/`)
 
-📖 3.4 · 3.6 · 3.7 · 5.5
+📖 3.4 · 3.6 · 3.7 · 5.5 · 5.10
 
-Los tipos son el contrato escrito en TypeScript. Tienen que coincidir campo por campo con los schemas del paso 1.
+Los tipos son el contrato escrito en TypeScript. Tienen que coincidir campo por campo con los schemas del paso 1. Son los **DTOs** de la API: `Libro` es lo que sale, y `NuevoLibro`, `EditarLibro`, `NuevoPrestamo` y `Devolucion` son lo que entra.
 
 Creá **`src/types/autor.ts`**:
 

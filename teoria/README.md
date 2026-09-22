@@ -72,6 +72,7 @@ La teoría está partida en **un archivo por módulo**.
   - 5.7 Cómo dibujar un diagrama de arquitectura
   - 5.8 ORM: hablar con la base sin escribir SQL
   - 5.9 La capa de repositorios
+  - 5.10 DTOs: lo que entra y sale de la API
 - Módulo 6 · SOLID y buenas prácticas
   - 6.1 Buenas prácticas básicas (antes de SOLID)
   - 6.2 Manejo de errores centralizado en Express

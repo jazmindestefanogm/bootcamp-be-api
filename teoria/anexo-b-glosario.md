@@ -28,6 +28,10 @@
 | **Modelo (ORM)** | Clase que representa una tabla; define columnas, tipos y relaciones. |
 | **Instancia (ORM)** | Objeto de un modelo; representa una fila. `toJSON()` la vuelve objeto plano. |
 | **Repositorio** | Módulo con las funciones de acceso a datos de un recurso. Único que usa el ORM. |
+| **DTO** | *Data Transfer Object*: la forma exacta de los datos que entran o salen de la API. Lo decide el contrato, no la tabla. |
+| **Entidad** | Una fila de la base tal como está guardada. En este proyecto, un modelo de Sequelize. |
+| **Mapper** | Función que convierte una entidad en un DTO eligiendo campo por campo. |
+| **Asignación masiva** | Ataque que aprovecha pasar `req.body` directo a la base para modificar campos no permitidos. |
 | **Servicio** | Capa opcional entre controlador y repositorios para reglas de negocio complejas. |
 | **DER** | Diagrama Entidad-Relación: tablas, columnas, claves y relaciones de una base. |
 | **PK / FK** | Clave primaria / clave foránea. |
