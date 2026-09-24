@@ -22,21 +22,29 @@ Para entregar:
 
 ## Extra (opcional)
 
-El extra son los **endpoints de autores (/authors) y de préstamos (/loans)**. Hacelo solo si terminaste la entrega. Se resuelve con los mismos pasos que libros.
+El extra es el **CRUD de autores (/authors) y de préstamos (/loans)**. Hacelo solo si terminaste la entrega. Se resuelve con los mismos pasos que libros.
 
-Endpoints:
+Autores:
 
 - GET /authors: lista todos los autores.
 - GET /authors/{id}: devuelve un autor.
+- POST /authors: crea un autor. Recibe { "name": "Julio Cortázar", "nationality": "Argentina" }.
+- PATCH /authors/{id}: modifica algunos campos de un autor.
+- PUT /authors/{id}: reemplaza todos los campos de un autor.
 - DELETE /authors/{id}: borra un autor, solo si no tiene libros. Si tiene, 409.
+
+Préstamos:
+
 - GET /loans: lista todos los préstamos. Con ?active=true, solo los que todavía no se devolvieron (return_date en null). Sin active o con ?active=false, todos. active no es un campo del préstamo: es solo un filtro. Si viene y no es true ni false, 400.
-- POST /loans: presta un libro. Recibe { "book_id": 3, "member_name": "Sofía" }. Se guarda con loan_date = hoy y return_date = null. Si el libro no existe, 404. Si no está disponible, 409. Al prestarlo, el libro pasa a available: false.
-- PATCH /loans/{id}: registra que se devolvió. Recibe { "return_date": "2026-09-30" }. Si el préstamo no existe, 404. Si ya se devolvió, 409. Al devolverlo, el libro vuelve a available: true.
+- GET /loans/{id}: devuelve un préstamo.
+- POST /loans: presta un libro. Recibe { "book_id": 3, "member_name": "Sofía" }. Se guarda con loan_date = hoy y return_date = null. Si el libro no existe, 404. Si el libro tiene available: false (ya está prestado), 409. Al prestarlo, hay que actualizar también el libro: su available pasa a false.
+- PATCH /loans/{id}: registra que se devolvió. Recibe { "return_date": "2026-09-30" }. Si el préstamo no existe, 404. Si ya tiene return_date, 409. Al devolverlo, hay que actualizar también el libro (el de book_id): su available vuelve a true.
+- DELETE /loans/{id}: borra un préstamo. Si su return_date era null, hay que actualizar también el libro (el de book_id): su available vuelve a true.
 
 Datos:
 
-- Author: id, name, nationality.
-- Loan: id, book_id, member_name, loan_date, return_date (null si no se devolvió).
+- Author: id, name, nationality. Para crear o modificar: NewAuthor y UpdateAuthor (sin id).
+- Loan: id, book_id, member_name, loan_date, return_date (null si no se devolvió). Un préstamo no tiene available: ese campo es del libro (Book).
 
 Tenés que escribir también su parte del contrato en docs/openapi.yaml.
 
@@ -94,7 +102,7 @@ Al terminar cada paso, subí tus cambios: git add, git commit y git push.
 Ya vienen resueltos, no tenés que escribirlos:
 
 - El contrato de libros está en docs/openapi.yaml. Leelo y abrilo en http://localhost:3000/docs.
-- Los tipos están en src/types: book.ts (Book, NewBook, UpdateBook, BookFilters), author.ts (Author), loan.ts (Loan, NewLoan, LoanReturn) y common.ts (Pagination, Page). Usalos en los pasos siguientes.
+- Los tipos están en src/types: book.ts (Book, NewBook, UpdateBook, BookFilters), author.ts (Author, NewAuthor, UpdateAuthor), loan.ts (Loan, NewLoan, LoanReturn) y common.ts (Pagination, Page). Usalos en los pasos siguientes.
 - La tabla de la base y sus relaciones están en docs/DER.md.
 
 Datos:

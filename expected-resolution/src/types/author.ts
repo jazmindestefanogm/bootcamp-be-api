@@ -3,3 +3,13 @@ export interface Author {
   name: string;
   nationality: string;
 }
+
+export interface NewAuthor {
+  name: string;
+  nationality: string;
+}
+
+export interface UpdateAuthor {
+  name?: string;
+  nationality?: string;
+}

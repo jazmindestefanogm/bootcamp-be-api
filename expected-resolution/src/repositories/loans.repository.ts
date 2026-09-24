@@ -27,3 +27,10 @@ export async function registerReturn(id: number, returnDate: string): Promise<Lo
 export async function countByBook(bookId: number): Promise<number> {
   return LoanModel.count({ where: { book_id: bookId } });
 }
+
+export async function remove(id: number): Promise<boolean> {
+  const row = await LoanModel.findByPk(id);
+  if (!row) return false;
+  await row.destroy();
+  return true;
+}

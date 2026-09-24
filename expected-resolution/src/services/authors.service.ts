@@ -1,6 +1,6 @@
 import * as AuthorsRepository from "../repositories/authors.repository.js";
 import * as BooksRepository from "../repositories/books.repository.js";
-import { Author } from "../types/author.js";
+import { Author, NewAuthor, UpdateAuthor } from "../types/author.js";
 
 export async function list(): Promise<Author[]> {
   return AuthorsRepository.findAll();
@@ -8,6 +8,14 @@ export async function list(): Promise<Author[]> {
 
 export async function getOne(id: number): Promise<Author | null> {
   return AuthorsRepository.findById(id);
+}
+
+export async function create(data: NewAuthor): Promise<Author> {
+  return AuthorsRepository.create(data);
+}
+
+export async function update(id: number, changes: UpdateAuthor): Promise<Author | null> {
+  return AuthorsRepository.update(id, changes);
 }
 
 // Regla: no se puede borrar un autor que tiene libros.

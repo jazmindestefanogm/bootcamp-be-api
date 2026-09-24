@@ -12,6 +12,20 @@ export async function list(req: Request, res: Response) {
   res.json(loans);
 }
 
+export async function getOne(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Id must be an integer" });
+  }
+
+  const loan = await LoansService.getOne(id);
+  if (!loan) {
+    return res.status(404).json({ error: "Loan not found" });
+  }
+
+  res.json(loan);
+}
+
 export async function create(req: Request, res: Response) {
   const data: NewLoan = { book_id: req.body.book_id, member_name: req.body.member_name };
 
@@ -35,4 +49,16 @@ export async function registerReturn(req: Request, res: Response) {
   if (result === "ALREADY_RETURNED") return res.status(409).json({ error: "Loan already returned" });
 
   res.json(result);
+}
+
+export async function remove(req: Request, res: Response) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Id must be an integer" });
+  }
+
+  const result = await LoansService.remove(id);
+  if (result === "LOAN_NOT_FOUND") return res.status(404).json({ error: "Loan not found" });
+
+  res.status(204).send();
 }
