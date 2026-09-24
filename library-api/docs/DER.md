@@ -52,7 +52,7 @@ La notación de las patas de gallo: `||` es "exactamente uno", `o{` es "cero o m
 
 **Una decisión de diseño para discutir**
 
-`books.available` es un dato **derivado**: en teoría se podría calcular preguntando si el libro tiene algún préstamo con `return_date` en `NULL`. Se guarda igual como columna para que `GET /books?available=true` sea una consulta simple. El costo es que la API tiene que mantenerlo sincronizado: cuando se crea un préstamo, el libro pasa a `available: false`; cuando se registra la devolución, vuelve a `true`. Esa es la regla de negocio de los préstamos (paso 5 de la práctica).
+`books.available` es un dato **derivado**: en teoría se podría calcular preguntando si el libro tiene algún préstamo con `return_date` en `NULL`. Se guarda igual como columna para que `GET /books?available=true` sea una consulta simple. El costo es que la API tiene que mantenerlo sincronizado: cuando se crea un préstamo, el libro pasa a `available: false`; cuando se registra la devolución, vuelve a `true`. Esa es la regla de negocio de los préstamos (está en el Extra de la práctica).
 
 ## Cómo se traduce a las otras dos vistas
 

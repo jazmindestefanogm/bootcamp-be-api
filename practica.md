@@ -22,16 +22,16 @@ Para entregar:
 
 ## Extra (opcional)
 
-El extra es el **CRUD de autores (/authors) y de préstamos (/loans)**. Hacelo solo si terminaste la entrega. Se resuelve con los mismos pasos que libros.
+El extra son los **endpoints de autores (/authors) y de préstamos (/loans)**. Hacelo solo si terminaste la entrega. Se resuelve con los mismos pasos que libros.
 
 Endpoints:
 
 - GET /authors: lista todos los autores.
-- GET /authors/{id}: devuelve un autor. 400 si el id no es válido, 404 si no existe.
-- DELETE /authors/{id}: borra un autor. 409 si tiene libros.
-- GET /loans: lista los préstamos. Con ?active=true, solo los no devueltos. 400 si active no es true ni false.
-- POST /loans: presta un libro. Recibe book_id y member_name. La fecha del préstamo es la de hoy. 404 si el libro no existe, 409 si no está disponible. Al prestarlo, el libro pasa a available: false.
-- PATCH /loans/{id}: registra la devolución. Recibe return_date. 404 si no existe, 409 si ya se devolvió. Al devolverlo, el libro vuelve a available: true.
+- GET /authors/{id}: devuelve un autor.
+- DELETE /authors/{id}: borra un autor, solo si no tiene libros. Si tiene, 409.
+- GET /loans: lista todos los préstamos. Con ?active=true, solo los que todavía no se devolvieron (return_date en null). Sin active o con ?active=false, todos. active no es un campo del préstamo: es solo un filtro. Si viene y no es true ni false, 400.
+- POST /loans: presta un libro. Recibe { "book_id": 3, "member_name": "Sofía" }. Se guarda con loan_date = hoy y return_date = null. Si el libro no existe, 404. Si no está disponible, 409. Al prestarlo, el libro pasa a available: false.
+- PATCH /loans/{id}: registra que se devolvió. Recibe { "return_date": "2026-09-30" }. Si el préstamo no existe, 404. Si ya se devolvió, 409. Al devolverlo, el libro vuelve a available: true.
 
 Datos:
 
@@ -42,7 +42,8 @@ Tenés que escribir también su parte del contrato en docs/openapi.yaml.
 
 Tips:
 
-- La fecha de hoy en formato YYYY-MM-DD: new Date().toISOString().slice(0, 10)
+- Para loan_date, la fecha de hoy en formato YYYY-MM-DD: new Date().toISOString().slice(0, 10)
+- Los ids que no son válidos o no existen siguen las reglas de toda la API (400 y 404).
 
 ## Paso a paso
 
@@ -94,18 +95,19 @@ Ya vienen resueltos, no tenés que escribirlos:
 
 - El contrato de libros está en docs/openapi.yaml. Leelo y abrilo en http://localhost:3000/docs.
 - Los tipos están en src/types: book.ts (Book, NewBook, UpdateBook, BookFilters), author.ts (Author), loan.ts (Loan, NewLoan, LoanReturn) y common.ts (Pagination, Page). Usalos en los pasos siguientes.
+- La tabla de la base y sus relaciones están en docs/DER.md.
 
 Datos:
 
 - Book: id, title, year, author_id, available.
 - NewBook (para POST y PUT): title, year y author_id.
-- UpdateBook (para PATCH): los mismos campos que NewBook, pero puede venir cualquiera de ellos.
-- BookPage (respuesta de GET /books): data (lista de libros), total, page, limit.
+- UpdateBook (para PATCH): los mismos campos que NewBook, todos opcionales. Puede venir uno, dos o los tres.
+- BookPage (respuesta de GET /books; en el código es Page<Book>): data (los libros de esa página), total (cuántos libros cumplen los filtros, en todas las páginas), page y limit.
 
 Filtros de GET /books, todos opcionales:
 
 - title: libros cuyo título contiene ese texto, sin importar mayúsculas.
-- available: true o false.
+- available: true (solo disponibles) o false (solo prestados).
 - author_id: libros de ese autor.
 - page: qué página devolver. Por defecto 1.
 - limit: cuántos libros por página. Por defecto 10. Si piden más de 50, se usa 50.
@@ -116,11 +118,11 @@ La API empieza a leer y escribir libros en la base. En este paso no se valida na
 
 1. En src/repositories/books.repository.ts, creá:
    - findById(id): devuelve el libro, o null si no existe.
-   - search(filters, pagination): aplica los filtros que vinieron, ordena por id y devuelve una página.
-   - create(data): guarda el libro. available empieza en true.
-   - update(id, changes): cambia solo los campos que vinieron. Devuelve el libro, o null si no existe.
+   - search(filters, pagination): recibe un BookFilters y un Pagination. Aplica solo los filtros que vinieron, ordena por id y devuelve un Page<Book>.
+   - create(data): recibe un NewBook y guarda el libro. available empieza en true.
+   - update(id, changes): recibe un UpdateBook y cambia solo los campos que vinieron. Devuelve el libro, o null si no existe. Lo usan el PATCH y el PUT.
    - remove(id): devuelve true si lo borró, false si no existía.
-2. En src/routes/books.routes.ts, creá los 6 endpoints. Por ahora cada uno llama directo al repository. GET /books devuelve siempre la primera página de 10, sin filtros.
+2. En src/routes/books.routes.ts, creá los 6 endpoints. Por ahora cada uno llama directo al repository. En GET /books, llamá a search sin filtros, con page 1 y limit 10 (los filtros se agregan en el paso 3).
 3. En src/server.ts, montá el router en /books.
 
 Tips:
@@ -263,11 +265,11 @@ Prueba (corré npm run seed antes):
 
 1. En src/services/books.service.ts, creá las funciones que necesita el controller. El PUT y el PATCH pueden usar la misma función del service. El controller llama al service, y el service al repository. El controller ya no importa el repository: solo llama al service.
 2. Agregá las reglas:
-   - POST, PUT y PATCH: el author_id tiene que ser de un autor que existe (en PATCH, solo si viene). Si no, 404 con "Author not found".
-   - DELETE: no se puede borrar un libro que tiene préstamos. Si tiene, 409 con "Book has loans".
+   - POST /books, PUT /books/{id} y PATCH /books/{id}: el author_id tiene que ser de un autor que existe (en PATCH, solo si viene). Si no, 404 con "Author not found".
+   - DELETE /books/{id}: no se puede borrar un libro que tiene préstamos, aunque ya estén devueltos. Si tiene, 409 con "Book has loans".
 3. Para las reglas, creá:
-   - En src/repositories/authors.repository.ts: findById(id).
-   - En src/repositories/loans.repository.ts: countByBook(bookId).
+   - En src/repositories/authors.repository.ts: findById(id), que devuelve el autor o null.
+   - En src/repositories/loans.repository.ts: countByBook(bookId), que devuelve cuántos préstamos tiene ese libro.
 4. El service no usa req ni res y no elige status. Si algo sale mal, devuelve un texto (por ejemplo "AUTHOR_NOT_FOUND") y el controller elige el status.
 
 Ejemplo:
@@ -313,7 +315,7 @@ Prueba (corré npm run seed antes, en este orden):
 - POST /books con { "title": "New", "year": 2000, "author_id": 1 }: 201, id 7.
 - PATCH /books/7 con { "author_id": 99 }: 404.
 - PUT /books/7 con { "title": "New", "year": 2000, "author_id": 99 }: 404.
-- DELETE /books/2: 409.
+- DELETE /books/2: 409 (Bestiario tiene préstamos).
 - DELETE /books/7: 204.
 
 Después corré npm run seed y repetí la prueba del paso 3: tiene que dar igual.
