@@ -1,6 +1,6 @@
 # Library API · Starter
 
-Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos y los modelos ya hechos. Vos vas a escribir el contrato, las rutas, los controladores, los services y los repositorios.
+Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos, los modelos, los tipos y el contrato de libros ya hechos. Vos vas a escribir las rutas, los controladores, los services y los repositorios.
 
 ## Requisitos
 
@@ -24,7 +24,7 @@ npm run dev      # levanta el servidor en http://localhost:3000
 
 Si entrás a `http://localhost:3000` y ves `{ "message": "Library API running" }`, está todo bien.
 
-En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `docs/openapi.yaml`. Arranca vacío. Cada vez que guardás el YAML, recargá la página: no hace falta reiniciar el servidor. Desde ahí también podés probar los endpoints con **Try it out**.
+En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `docs/openapi.yaml`. Arranca con los endpoints de libros. Cada vez que guardás el YAML, recargá la página: no hace falta reiniciar el servidor. Desde ahí también podés probar los endpoints con **Try it out**.
 
 `npm run seed` se puede correr las veces que quieras: borra todo y vuelve a cargar los datos de ejemplo.
 
@@ -50,7 +50,7 @@ src/
 │   ├── Book.ts
 │   ├── Loan.ts
 │   └── index.ts         ← relaciones. Importá los modelos siempre desde acá.
-├── types/               ← VOS. Interfaces del dominio y tipos derivados.
+├── types/               ← YA HECHO. Interfaces del dominio.
 ├── repositories/        ← VOS. Acceso a datos. El único lugar que usa Sequelize.
 ├── controllers/         ← VOS. HTTP: lee req, valida, llama al service, responde.
 ├── services/            ← VOS. Reglas del negocio. Llama a los repositorios.
@@ -58,7 +58,7 @@ src/
 
 docs/
 ├── DER.md               ← YA HECHO. Diagrama entidad-relación de la base.
-└── openapi.yaml         ← VOS. El contrato de la API en OpenAPI. Se escribe ANTES del código.
+└── openapi.yaml         ← YA HECHO para libros. El contrato de la API en OpenAPI.
 ```
 
 ## Base de datos
