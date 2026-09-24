@@ -1,4 +1,4 @@
-> **Resolución esperada de la práctica (solo para docentes).** Es `library-api` con los pasos 1 a 5 de `practica.md` ya resueltos. Se usa igual: `npm install`, `npm run seed`, `npm run dev`.
+> **Resolución esperada de la práctica (solo para docentes).** Es `library-api` con los pasos 1 a 4 de `practica.md` ya resueltos. Se usa igual: `npm install`, `npm run seed`, `npm run dev`.
 
 # Library API · Starter
 

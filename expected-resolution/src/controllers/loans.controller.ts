@@ -1,31 +1,19 @@
 import { Request, Response } from "express";
 import * as LoansService from "../services/loans.service.js";
 import { NewLoan, LoanReturn } from "../types/loan.js";
-import { parseId, parseBoolean } from "./validations.js";
 
 export async function list(req: Request, res: Response) {
-  let activeOnly = false;
-  if (req.query.active !== undefined) {
-    const active = parseBoolean(String(req.query.active));
-    if (active === null) return res.status(400).json({ error: "active must be true or false" });
-    activeOnly = active;
+  const { active } = req.query;
+  if (active !== undefined && active !== "true" && active !== "false") {
+    return res.status(400).json({ error: "active must be true or false" });
   }
 
-  const loans = await LoansService.list(activeOnly);
+  const loans = await LoansService.list(active === "true");
   res.json(loans);
 }
 
 export async function create(req: Request, res: Response) {
-  const { book_id, member_name } = req.body;
-
-  if (!Number.isInteger(book_id) || book_id < 1) {
-    return res.status(400).json({ error: "book_id must be an integer greater than 0" });
-  }
-  if (typeof member_name !== "string" || member_name.length < 1) {
-    return res.status(400).json({ error: "member_name must be a non-empty string" });
-  }
-
-  const data: NewLoan = { book_id, member_name };
+  const data: NewLoan = { book_id: req.body.book_id, member_name: req.body.member_name };
 
   const result = await LoansService.create(data);
   if (result === "BOOK_NOT_FOUND") return res.status(404).json({ error: "Book not found" });
@@ -35,15 +23,12 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function registerReturn(req: Request, res: Response) {
-  const id = parseId(req.params.id);
-  if (id === null) return res.status(400).json({ error: "Id must be an integer" });
-
-  const { return_date } = req.body;
-  if (typeof return_date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(return_date)) {
-    return res.status(400).json({ error: "return_date must have the format YYYY-MM-DD" });
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Id must be an integer" });
   }
 
-  const data: LoanReturn = { return_date };
+  const data: LoanReturn = { return_date: req.body.return_date };
 
   const result = await LoansService.registerReturn(id, data);
   if (result === "LOAN_NOT_FOUND") return res.status(404).json({ error: "Loan not found" });

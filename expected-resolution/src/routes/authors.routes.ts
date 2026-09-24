@@ -1,10 +1,10 @@
 import { Router } from "express";
-import * as controller from "../controllers/authors.controller.js";
+import * as AuthorsController from "../controllers/authors.controller.js";
 
 const router = Router();
 
-router.get("/", controller.list);
-router.get("/:id", controller.getOne);
-router.delete("/:id", controller.remove);
+router.get("/", AuthorsController.list);
+router.get("/:id", AuthorsController.getOne);
+router.delete("/:id", AuthorsController.remove);
 
 export default router;

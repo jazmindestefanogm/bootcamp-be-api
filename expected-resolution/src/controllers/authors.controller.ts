@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import * as AuthorsService from "../services/authors.service.js";
-import { parseId } from "./validations.js";
 
 export async function list(req: Request, res: Response) {
   const authors = await AuthorsService.list();
@@ -8,8 +7,10 @@ export async function list(req: Request, res: Response) {
 }
 
 export async function getOne(req: Request, res: Response) {
-  const id = parseId(req.params.id);
-  if (id === null) return res.status(400).json({ error: "Id must be an integer" });
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Id must be an integer" });
+  }
 
   const author = await AuthorsService.getOne(id);
   if (!author) return res.status(404).json({ error: "Author not found" });
@@ -18,8 +19,10 @@ export async function getOne(req: Request, res: Response) {
 }
 
 export async function remove(req: Request, res: Response) {
-  const id = parseId(req.params.id);
-  if (id === null) return res.status(400).json({ error: "Id must be an integer" });
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id < 1) {
+    return res.status(400).json({ error: "Id must be an integer" });
+  }
 
   const result = await AuthorsService.remove(id);
   if (result === "AUTHOR_NOT_FOUND") return res.status(404).json({ error: "Author not found" });

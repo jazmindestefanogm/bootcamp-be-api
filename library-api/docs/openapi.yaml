@@ -21,9 +21,192 @@ servers:
 
 # ──────────────────────────────────────────────────────────────
 # Endpoints. Un bloque por ruta; dentro, un bloque por verbo.
-# Empezá por /authors. Abajo hay una plantilla comentada para copiar.
+# /books ya está escrito. Extra: /authors y /loans; abajo hay una plantilla comentada para copiar.
 # ──────────────────────────────────────────────────────────────
-paths: {}
+paths:
+  /books:
+    get:
+      summary: Search books with filters and pagination
+      tags: [Books]
+      parameters:
+        - name: title
+          in: query
+          required: false
+          schema: { type: string }
+        - name: available
+          in: query
+          required: false
+          schema: { type: boolean }
+        - name: author_id
+          in: query
+          required: false
+          schema: { type: integer }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 10 }
+      responses:
+        "200":
+          description: Page of books
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BookPage"
+        "400":
+          description: Invalid query param
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create a book
+      tags: [Books]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBook"
+      responses:
+        "201":
+          description: Book created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "404":
+          description: Author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /books/{id}:
+    get:
+      summary: Get a book by id
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Book found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Update some fields of a book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBook"
+      responses:
+        "200":
+          description: Book updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book or author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      summary: Replace all fields of a book
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewBook"
+      responses:
+        "200":
+          description: Book replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Book"
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book or author not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a book (only if it was never loaned)
+      tags: [Books]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Book deleted
+        "400":
+          description: Id is not a number
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Book has loans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 # Plantilla de un endpoint (descomentá, pegá dentro de `paths:` y completá):
 #
@@ -71,3 +254,36 @@ components:
         error:
           type: string
           example: Book not found
+    Book:
+      type: object
+      required: [id, title, year, author_id, available]
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: Rayuela }
+        year: { type: integer, example: 1963 }
+        author_id: { type: integer, example: 1 }
+        available: { type: boolean, example: true }
+    NewBook:
+      type: object
+      required: [title, year, author_id]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Rayuela }
+        year: { type: integer, minimum: 1000, maximum: 2100, example: 1963 }
+        author_id: { type: integer, example: 1 }
+    UpdateBook:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200, example: Rayuela }
+        year: { type: integer, minimum: 1000, maximum: 2100, example: 1963 }
+        author_id: { type: integer, example: 1 }
+    BookPage:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"
+        total: { type: integer, example: 6 }
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 10 }
