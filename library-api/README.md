@@ -101,14 +101,9 @@ Cada instancia tiene los campos como propiedades (`book.title`) y `book.toJSON()
 
 ## Búsqueda con paginación (ya resuelta)
 
-La función `search` de `src/repositories/books.repository.ts` te la damos hecha. Copiala tal cual:
+La función `search` del repository:
 
 ```ts
-import { Op } from "sequelize";
-import { Book as BookModel } from "../models/index.js";
-import { Book, BookFilters } from "../types/book.js";
-import { Pagination, Page } from "../types/common.js";
-
 export async function search(filters: BookFilters, pagination: Pagination): Promise<Page<Book>> {
   // Solo se agregan al where los filtros que vinieron.
   const where: Record<string, unknown> = {};
