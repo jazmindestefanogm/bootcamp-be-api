@@ -25,6 +25,7 @@ export async function search(req: Request, res: Response) {
   if (available !== undefined) filters.available = available === "true";
   if (author_id !== undefined) filters.author_id = Number(author_id);
 
+  // Page<Book> ya tiene la forma { data, total, page, limit }.
   const result = await BooksService.search(filters, { page, limit: Math.min(limit, 50) });
   res.json(result);
 }
@@ -40,7 +41,7 @@ export async function getOne(req: Request, res: Response) {
     return res.status(404).json({ error: "Book not found" });
   }
 
-  res.json(book);
+  res.json({ data: book });
 }
 
 export async function create(req: Request, res: Response) {
@@ -51,7 +52,7 @@ export async function create(req: Request, res: Response) {
     return res.status(404).json({ error: "Author not found" });
   }
 
-  res.status(201).json(result);
+  res.status(201).json({ data: result });
 }
 
 // PATCH: solo los campos que vinieron.
@@ -74,7 +75,7 @@ export async function update(req: Request, res: Response) {
     return res.status(404).json({ error: "Author not found" });
   }
 
-  res.json(result);
+  res.json({ data: result });
 }
 
 // PUT: todos los campos son obligatorios.
@@ -94,7 +95,7 @@ export async function replace(req: Request, res: Response) {
     return res.status(404).json({ error: "Author not found" });
   }
 
-  res.json(result);
+  res.json({ data: result });
 }
 
 export async function remove(req: Request, res: Response) {

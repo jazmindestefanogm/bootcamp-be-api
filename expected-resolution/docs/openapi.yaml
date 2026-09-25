@@ -14,6 +14,9 @@ info:
     **Conventions**
     - All requests and responses are JSON.
     - Dates use the `YYYY-MM-DD` format.
+    - Successful responses with a body have the shape `{ "data": ... }`: an object for one item, an array for a list.
+    - Paginated lists add the pagination fields next to `data`: `{ "data": [...], "total": 6, "page": 1, "limit": 10 }`.
+    - `204` responses have no body.
     - All errors have the shape `{ "error": "..." }` (see the `Error` schema).
 
 servers:
@@ -34,9 +37,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Author"
+                $ref: "#/components/schemas/AuthorList"
     post:
       summary: Create an author
       tags: [Authors]
@@ -52,7 +53,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Author"
+                $ref: "#/components/schemas/AuthorResponse"
   /authors/{id}:
     get:
       summary: Get an author by id
@@ -68,7 +69,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Author"
+                $ref: "#/components/schemas/AuthorResponse"
         "400":
           description: Id is not a number
           content:
@@ -101,7 +102,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Author"
+                $ref: "#/components/schemas/AuthorResponse"
         "400":
           description: Id is not a number
           content:
@@ -134,7 +135,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Author"
+                $ref: "#/components/schemas/AuthorResponse"
         "400":
           description: Id is not a number
           content:
@@ -229,7 +230,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Book"
+                $ref: "#/components/schemas/BookResponse"
         "404":
           description: Author not found
           content:
@@ -251,7 +252,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Book"
+                $ref: "#/components/schemas/BookResponse"
         "400":
           description: Id is not a number
           content:
@@ -284,7 +285,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Book"
+                $ref: "#/components/schemas/BookResponse"
         "400":
           description: Id is not a number
           content:
@@ -317,7 +318,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Book"
+                $ref: "#/components/schemas/BookResponse"
         "400":
           description: Id is not a number
           content:
@@ -374,9 +375,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Loan"
+                $ref: "#/components/schemas/LoanList"
         "400":
           description: Invalid query param
           content:
@@ -399,7 +398,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Loan"
+                $ref: "#/components/schemas/LoanResponse"
         "404":
           description: Book not found
           content:
@@ -427,7 +426,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Loan"
+                $ref: "#/components/schemas/LoanResponse"
         "400":
           description: Id is not a number
           content:
@@ -461,7 +460,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Loan"
+                $ref: "#/components/schemas/LoanResponse"
         "400":
           description: Id is not a number
           content:
@@ -528,7 +527,7 @@ paths:
 #          content:
 #            application/json:
 #              schema:
-#                $ref: "#/components/schemas/Resource"
+#                $ref: "#/components/schemas/ResourceResponse"   # { data: Resource }
 #        "404":
 #          description: Resource not found
 #          content:
@@ -569,6 +568,20 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 100, example: Julio Cortázar }
         nationality: { type: string, minLength: 1, maxLength: 50, example: Argentina }
+    AuthorResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Author"
+    AuthorList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Author"
     Book:
       type: object
       required: [id, title, year, author_id, available]
@@ -591,6 +604,12 @@ components:
         title: { type: string, minLength: 1, maxLength: 200, example: Rayuela }
         year: { type: integer, minimum: 1000, maximum: 2100, example: 1963 }
         author_id: { type: integer, example: 1 }
+    BookResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Book"
     BookPage:
       type: object
       required: [data, total, page, limit]
@@ -622,3 +641,17 @@ components:
       required: [return_date]
       properties:
         return_date: { type: string, example: "2026-09-30" }
+    LoanResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Loan"
+    LoanList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Loan"

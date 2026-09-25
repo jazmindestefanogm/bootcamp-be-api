@@ -2,7 +2,7 @@
 
 # Library API · Starter
 
-Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos y los modelos ya hechos. Vos vas a escribir el contrato, las rutas, los controladores, los services y los repositorios.
+Proyecto base para la clase **De la base de datos a la API**. Trae la base de datos, los modelos, los tipos y el contrato de libros ya hechos. Vos vas a escribir las rutas, los controladores, los services y los repositorios.
 
 ## Requisitos
 
@@ -26,7 +26,7 @@ npm run dev      # levanta el servidor en http://localhost:3000
 
 Si entrás a `http://localhost:3000` y ves `{ "message": "Library API running" }`, está todo bien.
 
-En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `docs/openapi.yaml`. Arranca vacío. Cada vez que guardás el YAML, recargá la página: no hace falta reiniciar el servidor. Desde ahí también podés probar los endpoints con **Try it out**.
+En `http://localhost:3000/docs` está **Swagger UI** mostrando el contrato de `docs/openapi.yaml`. Arranca con los endpoints de libros. Cada vez que guardás el YAML, recargá la página: no hace falta reiniciar el servidor. Desde ahí también podés probar los endpoints con **Try it out**.
 
 `npm run seed` se puede correr las veces que quieras: borra todo y vuelve a cargar los datos de ejemplo.
 
@@ -52,7 +52,7 @@ src/
 │   ├── Book.ts
 │   ├── Loan.ts
 │   └── index.ts         ← relaciones. Importá los modelos siempre desde acá.
-├── types/               ← VOS. Interfaces del dominio y tipos derivados.
+├── types/               ← YA HECHO. Interfaces del dominio.
 ├── repositories/        ← VOS. Acceso a datos. El único lugar que usa Sequelize.
 ├── controllers/         ← VOS. HTTP: lee req, valida, llama al service, responde.
 ├── services/            ← VOS. Reglas del negocio. Llama a los repositorios.
@@ -60,7 +60,7 @@ src/
 
 docs/
 ├── DER.md               ← YA HECHO. Diagrama entidad-relación de la base.
-└── openapi.yaml         ← VOS. El contrato de la API en OpenAPI. Se escribe ANTES del código.
+└── openapi.yaml         ← YA HECHO para libros. El contrato de la API en OpenAPI.
 ```
 
 ## Base de datos
@@ -99,24 +99,63 @@ await book.destroy();                                   // DELETE de una instanc
 await Book.count({ where: { author_id: 2 } });          // SELECT COUNT(*) ...
 ```
 
-Para la búsqueda con paginación:
+Cada instancia tiene los campos como propiedades (`book.title`) y `book.toJSON()` para convertirla a un objeto plano.
+
+## Búsqueda con paginación (ya resuelta)
+
+La función `search` de `src/repositories/books.repository.ts` te la damos hecha. Copiala tal cual:
 
 ```ts
-// Búsqueda parcial: ILIKE '%ray%'. En Postgres, LIKE distingue mayúsculas e ILIKE no.
-const where: Record<string, unknown> = {};
-if (filters.title !== undefined) where.title = { [Op.iLike]: `%${filters.title}%` };
-if (filters.available !== undefined) where.available = filters.available;
+import { Op } from "sequelize";
+import { Book as BookModel } from "../models/index.js";
+import { Book, BookFilters } from "../types/book.js";
+import { Pagination, Page } from "../types/common.js";
 
-// Devuelve las filas de la página Y el total de filas que cumplen el where.
-const { rows, count } = await Book.findAndCountAll({
-  where,
-  limit: pagination.limit,                              // cuántas filas
-  offset: (pagination.page - 1) * pagination.limit,     // cuántas saltar
-  order: [["id", "ASC"]],                               // siempre ordená al paginar, o las páginas se mezclan
-});
+export async function search(filters: BookFilters, pagination: Pagination): Promise<Page<Book>> {
+  // Solo se agregan al where los filtros que vinieron.
+  const where: Record<string, unknown> = {};
+  // Búsqueda parcial: ILIKE '%ray%'. En Postgres, LIKE distingue mayúsculas e ILIKE no.
+  if (filters.title !== undefined) where.title = { [Op.iLike]: `%${filters.title}%` };
+  if (filters.available !== undefined) where.available = filters.available;
+  if (filters.author_id !== undefined) where.author_id = filters.author_id;
+
+  // Devuelve las filas de la página (rows) Y el total de filas que cumplen el where (count).
+  const { rows, count } = await BookModel.findAndCountAll({
+    where,
+    limit: pagination.limit,                            // cuántas filas
+    offset: (pagination.page - 1) * pagination.limit,   // cuántas saltar: page 2 con limit 10 → offset 10
+    order: [["id", "ASC"]],                             // siempre ordená al paginar, o las páginas se mezclan
+  });
+
+  return {
+    data: rows.map((row) => row.toJSON()),
+    total: count,
+    page: pagination.page,
+    limit: pagination.limit,
+  };
+}
 ```
 
-Cada instancia tiene los campos como propiedades (`book.title`) y `book.toJSON()` para convertirla a un objeto plano. `findAndCountAll` devuelve `rows` (instancias) y `count` (número).
+`Page<Book>` ya tiene la forma de la respuesta, así que el controller la responde tal cual: `res.json(result)`. Lo que sí te toca es leer `page` y `limit` de la query en el controller (por defecto 1 y 10, validarlos y usar 50 si `limit` es mayor que 50) y pasárselos a `search`.
+
+## Forma de las respuestas
+
+Todas las respuestas de la API tienen la misma forma. Si salió bien, lo que pediste está en `data`. Si salió mal, el mensaje está en `error`.
+
+| Caso | Status | Body |
+|---|---|---|
+| Un recurso (GET por id, POST, PATCH, PUT) | 200 / 201 | `{ "data": { "id": 1, "title": "Rayuela", ... } }` |
+| Una lista sin paginar | 200 | `{ "data": [ ... ] }` |
+| Una lista paginada (`GET /books`) | 200 | `{ "data": [ ... ], "total": 6, "page": 1, "limit": 10 }` |
+| Borrado | 204 | sin body |
+| Error | 400 / 404 / 409 | `{ "error": "Book not found" }` |
+
+El repository devuelve el dato solo (un `Book`, un `Book[]`). El `{ data: ... }` lo arma el controller al responder:
+
+```ts
+res.json({ data: book });
+res.status(201).json({ data: book });
+```
 
 ## OpenAPI en cinco líneas
 
@@ -134,7 +173,7 @@ paths:
           description: Book found
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Book" }
+              schema: { $ref: "#/components/schemas/BookResponse" }
 
 components:
   schemas:
@@ -144,6 +183,11 @@ components:
       properties:
         id:     { type: integer, example: 3 }
         title:  { type: string,  example: Rayuela }
+    BookResponse:                        # la respuesta envuelve al Book en data
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: "#/components/schemas/Book" }
 ```
 
 Un `requestBody` se escribe igual que un `content` de respuesta. Tipos: `integer`, `number`, `string`, `boolean`. Reglas: `minLength`, `maxLength`, `minimum`, `maximum`, `nullable: true`. Un query param es un parámetro con `in: query` y `required: false`.

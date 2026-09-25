@@ -9,7 +9,7 @@ export async function list(req: Request, res: Response) {
   }
 
   const loans = await LoansService.list(active === "true");
-  res.json(loans);
+  res.json({ data: loans });
 }
 
 export async function getOne(req: Request, res: Response) {
@@ -23,7 +23,7 @@ export async function getOne(req: Request, res: Response) {
     return res.status(404).json({ error: "Loan not found" });
   }
 
-  res.json(loan);
+  res.json({ data: loan });
 }
 
 export async function create(req: Request, res: Response) {
@@ -33,7 +33,7 @@ export async function create(req: Request, res: Response) {
   if (result === "BOOK_NOT_FOUND") return res.status(404).json({ error: "Book not found" });
   if (result === "BOOK_NOT_AVAILABLE") return res.status(409).json({ error: "Book is not available" });
 
-  res.status(201).json(result);
+  res.status(201).json({ data: result });
 }
 
 export async function registerReturn(req: Request, res: Response) {
@@ -48,7 +48,7 @@ export async function registerReturn(req: Request, res: Response) {
   if (result === "LOAN_NOT_FOUND") return res.status(404).json({ error: "Loan not found" });
   if (result === "ALREADY_RETURNED") return res.status(409).json({ error: "Loan already returned" });
 
-  res.json(result);
+  res.json({ data: result });
 }
 
 export async function remove(req: Request, res: Response) {

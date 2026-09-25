@@ -4,6 +4,9 @@
 
 La entrega es **solo el CRUD de libros** (/books), funcionando contra la base de datos.
 
+### Importante
+Lee el README.md del proyecto Library API
+
 Endpoints:
 
 - GET /books: busca libros con filtros y paginación.
@@ -45,6 +48,7 @@ Datos:
 
 - Author: id, name, nationality. Para crear o modificar: NewAuthor y UpdateAuthor (sin id).
 - Loan: id, book_id, member_name, loan_date, return_date (null si no se devolvió). Un préstamo no tiene available: ese campo es del libro (Book).
+- Las respuestas siguen la misma forma que libros: un autor o préstamo va en { "data": {...} } y las listas (no están paginadas) en { "data": [...] }, sin total, page ni limit.
 
 Tenés que escribir también su parte del contrato en docs/openapi.yaml.
 
@@ -57,7 +61,10 @@ Tips:
 
 ### Reglas para toda la API
 
+- Todas las respuestas OK con body se responden así: { "data": ... }. Adentro de data va lo que se pidió: un objeto (un libro) o un array (una lista de libros).
+- Las listas paginadas agregan los datos de la paginación al lado de data: { "data": [...], "total": 6, "page": 1, "limit": 10 }.
 - Todos los errores se responden así: { "error": "mensaje" }.
+- Así, el que usa la API siempre sabe dónde mirar: si salió bien, en data; si salió mal, en error.
 - Id que no es un número entero mayor que 0: 400.
 - Id que no existe: 404.
 - Filtro de la query con un valor inválido: 400.
@@ -69,7 +76,7 @@ Tips:
 
 - 200: OK, devuelvo datos.
 - 201: OK, creé algo.
-- 204: OK, borré. Sin body.
+- 204: OK, borré. Sin body (ni data ni error).
 - 400: me mandaste algo mal.
 - 404: no existe.
 - 409: choca con el estado actual (por ejemplo, el libro tiene préstamos).
@@ -110,6 +117,7 @@ Datos:
 - Book: id, title, year, author_id, available.
 - NewBook (para POST y PUT): title, year y author_id.
 - UpdateBook (para PATCH): los mismos campos que NewBook, todos opcionales. Puede venir uno, dos o los tres.
+- BookResponse (respuesta de GET /books/{id}, POST, PATCH y PUT): { data: Book }.
 - BookPage (respuesta de GET /books; en el código es Page<Book>): data (los libros de esa página), total (cuántos libros cumplen los filtros, en todas las páginas), page y limit.
 
 Filtros de GET /books, todos opcionales:
@@ -126,7 +134,7 @@ La API empieza a leer y escribir libros en la base. En este paso no se valida na
 
 1. En src/repositories/books.repository.ts, creá:
    - findById(id): devuelve el libro, o null si no existe.
-   - search(filters, pagination): recibe un BookFilters y un Pagination. Aplica solo los filtros que vinieron, ordena por id y devuelve un Page<Book>.
+   - search(filters, pagination): recibe un BookFilters y un Pagination. Aplica solo los filtros que vinieron, ordena por id y devuelve un Page<Book>. Ya está resuelta en el README de library-api (sección "Búsqueda con paginación"): copiala y leé los comentarios.
    - create(data): recibe un NewBook y guarda el libro. available empieza en true.
    - update(id, changes): recibe un UpdateBook y cambia solo los campos que vinieron. Devuelve el libro, o null si no existe. Lo usan el PATCH y el PUT.
    - remove(id): devuelve true si lo borró, false si no existía.
@@ -137,8 +145,8 @@ Tips:
 
 - Importá los modelos desde models/index.js.
 - Devolvé siempre objetos comunes, no instancias de Sequelize (usá toJSON).
-- Para search: findAndCountAll, limit y offset para paginar, y Op.iLike para buscar texto.
-- offset = (page - 1) × limit. Por ejemplo, page 2 con limit 10 es offset 10.
+- El repository devuelve el libro solo. El { data: ... } lo arma la ruta (después el controller) al responder: res.json({ data: book }). La excepción es search: Page<Book> ya viene con data (y total, page y limit), así que se responde tal cual.
+- La forma de todas las respuestas está en el README de library-api (sección "Forma de las respuestas").
 - Dentro del router, las rutas son / y /:id. El /books lo pone app.use en server.ts.
 
 Ejemplo:
@@ -170,12 +178,12 @@ const router = Router();
 
 router.get("/:id", async (req, res) => {
   const category = await CategoriesRepository.findById(Number(req.params.id));
-  res.json(category);
+  res.json({ data: category });
 });
 
 router.post("/", async (req, res) => {
   const category = await CategoriesRepository.create(req.body);
-  res.status(201).json(category);
+  res.status(201).json({ data: category });
 });
 
 export default router;
@@ -190,12 +198,12 @@ app.use("/categories", categoriesRoutes);
 
 Pruebas que podes hacer:
 
-- GET /books: 200, 6 libros, total 6.
-- GET /books/1: 200, Rayuela.
-- POST /books con { "title": "New", "year": 2000, "author_id": 1 }: 201, id 7, available true.
-- PATCH /books/7 con { "title": "Other" }: 200, title Other, year sigue en 2000.
-- PUT /books/7 con { "title": "Another", "year": 2001, "author_id": 2 }: 200, los tres campos cambiados.
-- DELETE /books/7: 204.
+- GET /books: 200, 6 libros en data, total 6.
+- GET /books/1: 200, data.title Rayuela.
+- POST /books con { "title": "New", "year": 2000, "author_id": 1 }: 201, data.id 7, data.available true.
+- PATCH /books/7 con { "title": "Other" }: 200, data.title Other, data.year sigue en 2000.
+- PUT /books/7 con { "title": "Another", "year": 2001, "author_id": 2 }: 200, los tres campos cambiados en data.
+- DELETE /books/7: 204, sin body.
 
 Al terminar, corré npm run seed para dejar la base como al principio.
 
@@ -231,13 +239,13 @@ export async function getOne(req: Request, res: Response) {
     return res.status(404).json({ error: "Category not found" });
   }
 
-  res.json(category);
+  res.json({ data: category });
 }
 
 export async function create(req: Request, res: Response) {
   const data: NewCategory = { name: req.body.name };
   const category = await CategoriesRepository.create(data);
-  res.status(201).json(category);
+  res.status(201).json({ data: category });
 }
 ```
 
@@ -254,31 +262,34 @@ router.post("/", CategoriesController.create);
 export default router;
 ```
 
-Prueba (corré npm run seed antes):
+Pruebas que podes hacer (corré npm run seed antes):
 
 - GET /books/abc: 400.
 - GET /books/999: 404.
 - GET /books?title=EL: total 2.
 - GET /books?available=true&author_id=2: total 1.
-- GET /books?page=2&limit=2: 2 libros (ids 3 y 4), page 2.
+- GET /books?page=2&limit=2: 2 libros en data (ids 3 y 4), page 2.
 - GET /books?limit=500: 200, limit 50.
 - GET /books?available=banana: 400.
 - GET /books?page=0: 400.
-- POST /books con { "title": "New", "year": 2000, "author_id": 1, "available": false }: 201 con available true.
-- PATCH /books/1 con { "title": "Other" }: 200, year sigue en 1963.
+- POST /books con { "title": "New", "year": 2000, "author_id": 1, "available": false }: 201 con data.available true.
+- PATCH /books/1 con { "title": "Other" }: 200, data.year sigue en 1963.
 - PUT /books/999 con { "title": "X", "year": 2000, "author_id": 1 }: 404.
 - DELETE /books/999: 404.
 
 ### Paso 4 · Service
 
 1. En src/services/books.service.ts, creá las funciones que necesita el controller. El PUT y el PATCH pueden usar la misma función del service. El controller llama al service, y el service al repository. El controller ya no importa el repository: solo llama al service.
-2. Agregá las reglas:
+2. Agregá las validaciones:
    - POST /books, PUT /books/{id} y PATCH /books/{id}: el author_id tiene que ser de un autor que existe (en PATCH, solo si viene). Si no, 404 con "Author not found".
    - DELETE /books/{id}: no se puede borrar un libro que tiene préstamos, aunque ya estén devueltos. Si tiene, 409 con "Book has loans".
-3. Para las reglas, creá:
+3. Para las validaciones, creá:
    - En src/repositories/authors.repository.ts: findById(id), que devuelve el autor o null.
    - En src/repositories/loans.repository.ts: countByBook(bookId), que devuelve cuántos préstamos tiene ese libro.
 4. El service no usa req ni res y no elige status. Si algo sale mal, devuelve un texto (por ejemplo "AUTHOR_NOT_FOUND") y el controller elige el status.
+
+### Importante
+Los GET, para este caso, no llevan reglas, pero aun asi deben estar en el servicio!
 
 Ejemplo:
 
@@ -317,10 +328,10 @@ export async function remove(req: Request, res: Response) {
 }
 ```
 
-Prueba (corré npm run seed antes, en este orden):
+Pruebas que podes hacer (corré npm run seed antes, en este orden):
 
 - POST /books con { "title": "New", "year": 2000, "author_id": 99 }: 404.
-- POST /books con { "title": "New", "year": 2000, "author_id": 1 }: 201, id 7.
+- POST /books con { "title": "New", "year": 2000, "author_id": 1 }: 201, data.id 7.
 - PATCH /books/7 con { "author_id": 99 }: 404.
 - PUT /books/7 con { "title": "New", "year": 2000, "author_id": 99 }: 404.
 - DELETE /books/2: 409 (Bestiario tiene préstamos).

@@ -4,7 +4,7 @@ import { NewAuthor, UpdateAuthor } from "../types/author.js";
 
 export async function list(req: Request, res: Response) {
   const authors = await AuthorsService.list();
-  res.json(authors);
+  res.json({ data: authors });
 }
 
 export async function getOne(req: Request, res: Response) {
@@ -16,14 +16,14 @@ export async function getOne(req: Request, res: Response) {
   const author = await AuthorsService.getOne(id);
   if (!author) return res.status(404).json({ error: "Author not found" });
 
-  res.json(author);
+  res.json({ data: author });
 }
 
 export async function create(req: Request, res: Response) {
   const data: NewAuthor = { name: req.body.name, nationality: req.body.nationality };
 
   const author = await AuthorsService.create(data);
-  res.status(201).json(author);
+  res.status(201).json({ data: author });
 }
 
 // PATCH: solo los campos que vinieron.
@@ -42,7 +42,7 @@ export async function update(req: Request, res: Response) {
     return res.status(404).json({ error: "Author not found" });
   }
 
-  res.json(author);
+  res.json({ data: author });
 }
 
 // PUT: todos los campos.
@@ -59,7 +59,7 @@ export async function replace(req: Request, res: Response) {
     return res.status(404).json({ error: "Author not found" });
   }
 
-  res.json(author);
+  res.json({ data: author });
 }
 
 export async function remove(req: Request, res: Response) {
